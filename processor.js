@@ -1,0 +1,258 @@
+// ─── Aced — processor.js ─────────────────────────────────────────────────────
+// Handles file reading + Gemini API call + localStorage output
+// Replace YOUR_API_KEY_HERE with your actual Gemini API key when you have it
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+const PROMPT_INSTRUCTIONS = `You are an expert study guide creator. A student will give you their study guide content and you will convert it into a structured, detailed study plan that gives them everything they need to actually learn the material — not just a list of topics to look up.
+
+Return ONLY valid JSON — no markdown, no backticks, no explanation. Just the raw JSON object.
+
+Use this exact format:
+{
+  "title": "Short descriptive title of the study guide topic",
+  "totalTime": "total estimated minutes as a number string e.g. 60",
+  "sections": [
+    {
+      "id": "section_1",
+      "title": "Section name",
+      "timeEstimate": "estimated minutes as a number string e.g. 20",
+      "emoji": "one relevant emoji",
+      "items": [
+        "Item with full answer/content baked in",
+        "Another item with its answer",
+        "Another item with its answer"
+      ]
+    }
+  ]
+}
+
+CRITICAL RULE — THE MOST IMPORTANT THING:
+Every item must include the actual answer, fact, or content — not just a prompt to go look it up.
+BAD:  "List the features of Porifera"
+GOOD: "Porifera: no true tissues/organs, filter feeders with pores (ostia). Example: sponges"
+
+BAD:  "Know the quadratic formula"
+GOOD: "Quadratic formula: x = (-b ± √(b²-4ac)) / 2a — use when ax²+bx+c=0"
+
+BAD:  "Understand the causes of WW1"
+GOOD: "WW1 causes (MAIN): Militarism, Alliance systems (Triple Entente vs Triple Alliance), Imperialism, Nationalism — sparked by assassination of Archduke Franz Ferdinand, 1914"
+
+BAD:  "Review vocabulary terms"
+GOOD: "Mitosis: cell division producing 2 identical daughter cells (for growth/repair). Phases: Prophase → Metaphase → Anaphase → Telophase"
+
+Subject-specific guidance:
+- Biology/Science: Include classification details, key features, examples, and processes with their steps
+- History: Include dates, names, causes, effects, and significance
+- Math/Physics: Include formulas, units, and a brief example of when/how to use them
+- Chemistry: Include equations, element symbols, and reaction types
+- English/Literature: Include character names, themes, quotes, and plot points
+- Vocabulary heavy subjects: Always format as "Term: definition + context/example"
+- Geography: Include locations, key facts, and relationships between places
+
+Additional rules:
+- Break content into 3-6 logical sections that follow the structure of the original guide
+- Each section should have 4-10 items
+- Time estimates should be realistic (2-4 min per item since items are detailed)
+- Emojis should match the subject matter
+- Only use content from the study guide — never hallucinate or add outside information
+- If the guide has a lot of content, prioritize the most testable facts
+- Write items like a student's own study notes — casual, concise, easy to read at a glance. Not a textbook. Aim for 1-2 key facts max per item, not an exhaustive list. If there's a lot to cover, split it into multiple items rather than cramming everything into one.
+- GOOD: "Porifera (sponges): no true tissues, filter feeders. Example: sea sponge"
+- BAD: "Phylum Porifera (Sponges): No true tissues/organs, sessile filter feeders with pores (ostia) and choanocytes (collar cells). Example: Sea sponge."`;
+
+
+// ─── Main entry point called by index.html ───────────────────────────────────
+async function processFile(file, onProgress) {
+  try {
+    onProgress(10, 'Reading your file...');
+    const text = await readFile(file);
+
+    if (!text || text.trim().length < 20) {
+      throw new Error('The file appears to be empty or too short to process.');
+    }
+
+    onProgress(30, 'Sending to AI...');
+    const planJSON = await callGemini(text, onProgress);
+
+    onProgress(85, 'Building your study plan...');
+    const plan = parsePlan(planJSON);
+
+    localStorage.setItem('acedStudyPlan', JSON.stringify(plan));
+
+    onProgress(100, 'Done! Opening your plan...');
+
+    // Small delay so user sees 100%
+    await sleep(600);
+    window.location.href = 'generate.html';
+
+  } catch (err) {
+    console.error('processFile error:', err);
+    throw err; // Re-throw so index.html can show the error
+  }
+}
+
+
+// ─── File Reading ─────────────────────────────────────────────────────────────
+async function readFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  if (ext === 'txt') {
+    return await readAsText(file);
+  }
+
+  if (ext === 'pdf') {
+    return await readPDF(file);
+  }
+
+  if (ext === 'docx' || ext === 'doc') {
+    return await readWord(file);
+  }
+
+  throw new Error(`Unsupported file type: .${ext}`);
+}
+
+function readAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('Failed to read file.'));
+    reader.readAsText(file);
+  });
+}
+
+async function readPDF(file) {
+  // Load pdf.js from CDN if not already loaded
+  if (!window.pdfjsLib) {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n\n';
+  }
+
+  if (!fullText.trim()) {
+    throw new Error('Could not extract text from this PDF. Try copying the text into a .txt file instead.');
+  }
+
+  return fullText;
+}
+
+async function readWord(file) {
+  // Load mammoth.js from CDN if not already loaded
+  if (!window.mammoth) {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await window.mammoth.extractRawText({ arrayBuffer });
+
+  if (!result.value.trim()) {
+    throw new Error('Could not extract text from this Word document. Try saving as .txt first.');
+  }
+
+  return result.value;
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve(); return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error(`Failed to load: ${src}`));
+    document.head.appendChild(script);
+  });
+}
+
+
+// ─── Gemini API Call (via secure Netlify Function) ────────────────────────────
+async function callGemini(studyGuideText, onProgress) {
+  const trimmed = studyGuideText.slice(0, 15000);
+
+  onProgress(50, 'AI is reading your guide...');
+
+  const response = await fetch('/.netlify/functions/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      studyGuideText: trimmed,
+      promptInstructions: PROMPT_INSTRUCTIONS
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    if (response.status === 429) throw new Error('Rate limit hit. Wait a minute and try again.');
+    if (response.status === 401) throw new Error('API key error. Contact support.');
+    throw new Error(data.error || `Error (${response.status})`);
+  }
+
+  onProgress(70, 'Processing response...');
+
+  if (!data.rawText) throw new Error('No response from AI. Try again.');
+
+  return data.rawText;
+}
+
+// ─── JSON Parsing ─────────────────────────────────────────────────────────────
+function parsePlan(rawText) {
+  // Strip markdown code fences if Gemini added them anyway
+  let cleaned = rawText.trim();
+  cleaned = cleaned.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+
+  let plan;
+  try {
+    plan = JSON.parse(cleaned);
+  } catch (e) {
+    // Try to extract JSON from within the text
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      plan = JSON.parse(match[0]);
+    } else {
+      throw new Error('AI returned invalid JSON. Please try again.');
+    }
+  }
+
+  // Validate structure
+  if (!plan.title || !Array.isArray(plan.sections) || plan.sections.length === 0) {
+    throw new Error('AI returned an unexpected format. Please try again.');
+  }
+
+// Ensure IDs exist + strip markdown formatting from items
+  plan.sections = plan.sections.map((s, i) => ({
+    id: s.id || `section_${i + 1}`,
+    title: s.title || `Section ${i + 1}`,
+    timeEstimate: s.timeEstimate || '15',
+    emoji: s.emoji || '📚',
+    items: Array.isArray(s.items) ? s.items.map(item =>
+      item.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')
+    ) : []
+  }));
+
+  // Calculate totalTime if missing
+  if (!plan.totalTime) {
+    const total = plan.sections.reduce((sum, s) => sum + parseInt(s.timeEstimate || 0), 0);
+    plan.totalTime = String(total);
+  }
+
+  return plan;
+}
+
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

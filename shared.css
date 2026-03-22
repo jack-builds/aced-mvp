@@ -1,0 +1,99 @@
+/* ── THEME TOKENS ── */
+:root {
+  --ease:      cubic-bezier(.4,0,.2,1);
+  --bg:        #1a1610;
+  --bg2:       #221e16;
+  --bg3:       #2c271d;
+  --border:    #3a3328;
+  --border-light: #4a4438;
+  --text:      #ede8df;
+  --muted:     #8a8070;
+  --accent:    #c8a96e;
+  --accent2:   #e8c98e;
+  --accent-dim: #9a7e4f;
+  --accent-glow: rgba(200,169,110,0.08);
+  --red:       #c87070;
+  --green:     #7db87d;
+  --green-bg:  rgba(125,184,125,0.1);
+  --radius:    12px;
+  --cta:       #c8a96e;
+  --cta-text:  #1a1610;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Lora', Georgia, serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── GRAIN OVERLAY ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.6;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.7); }
+}
+
+/* ── DOT PULSE ── */
+.dot-pulse {
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+/* ── FEEDBACK BAR ── */
+.feedback-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 40px;
+  padding: 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.feedback-link {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.feedback-link:hover { color: var(--accent); }
+
+.feedback-divider {
+  color: var(--border);
+  font-size: 0.75rem;
+}
+
+/* ── FOOTER SIGNUP ── */
+.footer-signup {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.footer-signup:hover { color: var(--accent); }
