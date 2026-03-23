@@ -338,3 +338,10 @@ body::after {
   .header { padding: 28px 0 22px; }
   .plan-meta { gap: 10px; }
 }
+
+.plan-subtitle {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 4px;
+}

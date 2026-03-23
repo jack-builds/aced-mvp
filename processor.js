@@ -57,7 +57,11 @@ Additional rules:
 - Emojis should match the subject matter
 - Only use content from the study guide — never hallucinate or add outside information
 - If the guide has a lot of content, prioritize the most testable facts
-- Write items like a student's own study notes — casual, concise, easy to read at a glance. Not a textbook. Aim for 1-2 key facts max per item, not an exhaustive list. If there's a lot to cover, split it into multiple items rather than cramming everything into one.
+- - Write items as active study tasks, not passive facts. Frame them so the student knows exactly what to DO. Examples:
+  - "Memorize: Porifera (sponges) = no true tissues, filter feeders. Test yourself by covering and recalling."
+  - "Understand & explain: Ser vs Estar — ser for permanent traits, estar for temporary states. Can you make up 2 examples of each?"
+  - "Work through: Quadratic formula x = (-b ± √(b²-4ac)) / 2a — solve one practice problem from scratch."
+- Keep items concise but actionable — the student should know exactly what to do when they see it.
 - GOOD: "Porifera (sponges): no true tissues, filter feeders. Example: sea sponge"
 - BAD: "Phylum Porifera (Sponges): No true tissues/organs, sessile filter feeders with pores (ostia) and choanocytes (collar cells). Example: Sea sponge."`;
 

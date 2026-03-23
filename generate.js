@@ -56,6 +56,7 @@ function renderPlan(plan) {
   app.innerHTML = `
     <div class="plan-header">
       <h1 class="plan-title">${esc(plan.title)}</h1>
+<p class="plan-subtitle">Work through each topic below. Check it off when you feel confident you know it. 💪</p>
       <div class="plan-meta">
         <span class="meta-pill">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
