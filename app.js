@@ -38,6 +38,8 @@ async function runQueue() {
     return;
   }
 
+  if (rateLimited) return; // Pause queue until rate limit ends
+
   processingQueue = true;
   const { file, resolve } = requestQueue.shift();
 
@@ -146,8 +148,11 @@ generateBtn.addEventListener('click', async () => {
     showError(err.message || 'Something went wrong. Please try again.');
 
     if (err.message.toLowerCase().includes('rate limit')) {
+      // Log headers to see real Retry-After
+      console.log('Rate limit headers:', err.response?.headers);
+
       let retryTime = 180; // fallback 3 minutes
-      if (err.response && err.response.headers && err.response.headers['retry-after']) {
+      if (err.response?.headers?.['retry-after']) {
         retryTime = parseInt(err.response.headers['retry-after'], 10);
       }
       startRetryCountdown(retryTime);
