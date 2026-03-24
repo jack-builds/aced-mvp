@@ -1,6 +1,6 @@
-// ─── Aced — app.js ───────────────────────────$
+// ─── Aced — app.js ───────────────────────────────────────────────────────────
 // Handles all UI logic for the upload page (index.html)
-// ────────────────────────────────────────────$
+// ─────────────────────────────────────────────────────────────────────────────
 
 const dropZone       = document.getElementById('drop-zone');
 const fileInput      = document.getElementById('file-input');
@@ -19,41 +19,10 @@ const loadingPctEl   = document.getElementById('loading-pct');
 const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED  = ['pdf', 'doc', 'docx', 'txt'];
 let selectedFile = null;
-let rateLimited = false;
+let isProcessing = false;
 
-// ── Request queue for throttling ─────────────────
-let requestQueue = [];
-let processingQueue = false;
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function processQueueHandler(file) {
-  return new Promise((resolve) => {
-    requestQueue.push({ file, resolve });
-    if (!processingQueue) runQueue();
-  });
-}
-
-async function runQueue() {
-  if (requestQueue.length === 0) {
-    processingQueue = false;
-    return;
-  }
-
-  if (rateLimited) return; // Pause queue until rate limit ends
-
-  processingQueue = true;
-  const { file, resolve } = requestQueue.shift();
-
-  try {
-    await processFile(file, (pct, msg) => setProgress(pct, msg));
-    resolve();
-  } catch (err) {
-    resolve(err);
-  } finally {
-    runQueue();
-  }
-}
-
-// ── Helpers ───────────────────────────────$
 function getIcon(ext) {
   return { pdf: '📕', docx: '📘', doc: '📘', txt: '📝' }[ext] || '📄';
 }
@@ -66,8 +35,8 @@ function formatSize(b) {
 
 function setFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
-  if (!ALLOWED.includes(ext)) { showError(`"${file.name}" isn't supported. Use ${ALLOWED.join(', ')}`); return; }
-  if (file.size > MAX_SIZE)   { showError(`File is ${formatSize(file.size)} — max size is ${formatSize(MAX_SIZE)}`); return; }
+  if (!ALLOWED.includes(ext)) { showError(`"${file.name}" isn't supported. Use PDF, Word, or .txt.`); return; }
+  if (file.size > MAX_SIZE)   { showError(`File is ${formatSize(file.size)} — max is 10MB.`); return; }
   selectedFile = file;
   hideError();
   fileIconEl.textContent = getIcon(ext);
@@ -97,30 +66,8 @@ function setProgress(pct, msg) {
   if (msg) loadingMsgEl.textContent = msg;
 }
 
-// ── Retry Countdown with Auto-Retry ─────────────────
-function startRetryCountdown(seconds) {
-  rateLimited = true;
-  generateBtn.disabled = true;
-  let retryTime = seconds;
+// ── Events ───────────────────────────────────────────────────────────────────
 
-  loadingMsgEl.textContent = `Rate limit hit. Please wait ${retryTime}s...`;
-
-  const interval = setInterval(() => {
-    retryTime--;
-    loadingMsgEl.textContent = `Rate limit hit. Please wait ${retryTime}s...`;
-    if (retryTime <= 0) {
-      clearInterval(interval);
-      rateLimited = false;
-      generateBtn.disabled = false;
-      hideLoading();
-
-      // Auto-retry queued requests
-      if (requestQueue.length > 0 && !processingQueue) runQueue();
-    }
-  }, 1000);
-}
-
-// ── Events ─────────────────────────────────
 fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
 
 dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -133,34 +80,20 @@ dropZone.addEventListener('drop', e => {
 
 fileRemoveBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
 
-// ── Generate Button ─────────────────────────
 generateBtn.addEventListener('click', async () => {
-  if (!selectedFile || generateBtn.disabled || rateLimited) return;
+  if (!selectedFile || isProcessing) return;
 
+  isProcessing = true;
   generateBtn.disabled = true;
   hideError();
   showLoading();
 
   try {
-    const err = await processQueueHandler(selectedFile);
-    if (err) throw err;
+    await processFile(selectedFile, (pct, msg) => setProgress(pct, msg));
   } catch (err) {
+    hideLoading();
+    generateBtn.disabled = false;
+    isProcessing = false;
     showError(err.message || 'Something went wrong. Please try again.');
-
-    if (err.message.toLowerCase().includes('rate limit')) {
-      // Log headers to see real Retry-After
-      console.log('Rate limit headers:', err.response?.headers);
-
-      let retryTime = 180; // fallback 3 minutes
-      if (err.response?.headers?.['retry-after']) {
-        retryTime = parseInt(err.response.headers['retry-after'], 10);
-      }
-      startRetryCountdown(retryTime);
-    }
-  } finally {
-    if (!rateLimited) {
-      hideLoading();
-      generateBtn.disabled = false;
-    }
   }
 });
