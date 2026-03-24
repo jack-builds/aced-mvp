@@ -1,9 +1,9 @@
 // ─── Aced — app.js ───────────────────────────$
 // Handles all UI logic for the upload page (index.html)
-// ──────────────────────────────────────$ById('error-msg');
+// ────────────────────────────────────────────$
 
-const dropZone       = document.getElementById('drop-zone');  
-const fileInput      = document.getElementById('file-input'); 
+const dropZone       = document.getElementById('drop-zone');
+const fileInput      = document.getElementById('file-input');
 const fileSelectedEl = document.getElementById('file-selected');
 const fileIconEl     = document.getElementById('file-icon');
 const fileNameEl     = document.getElementById('file-name');
@@ -19,10 +19,11 @@ const loadingPctEl   = document.getElementById('loading-pct');
 const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED  = ['pdf', 'doc', 'docx', 'txt'];
 let selectedFile = null;
+let rateLimited = false; // Flag to prevent clicks during rate limit
 
 // ── Helpers ───────────────────────────────$
 
-function getIcon(ext) { 
+function getIcon(ext) {
   return { pdf: '📕', docx: '📘', doc: '📘', txt: '📝' }[ext] || '📄';
 }
 
@@ -36,7 +37,7 @@ function setFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
   if (!ALLOWED.includes(ext)) { showError(`"${file.name}" isn't supported. Use ${ALLOWED.join(', ')}`); return; }
   if (file.size > MAX_SIZE)   { showError(`File is ${formatSize(file.size)} — max size is ${formatSize(MAX_SIZE)}`); return; }
-  selectedFile = file;  
+  selectedFile = file;
   hideError();
   fileIconEl.textContent = getIcon(ext);
   fileNameEl.textContent = file.name;
@@ -46,7 +47,7 @@ function setFile(file) {
 }
 
 function clearFile() {
-  selectedFile = null;  
+  selectedFile = null;
   fileInput.value = '';
   fileSelectedEl.classList.remove('show');
   generateBtn.disabled = true;
@@ -79,15 +80,12 @@ dropZone.addEventListener('drop', e => {
 
 fileRemoveBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
 
-// ── Generate Button with Spam Prevention ─────────────────────────────────────
+// ── Generate Button with Spam & Rate-Limit Protection ─────────────────────────
 
 generateBtn.addEventListener('click', async () => {
-  if (!selectedFile) return;
+  if (!selectedFile || generateBtn.disabled || rateLimited) return; // Block clicks if no file, disabled, or rate-limited
 
-  // Prevent spamming
-  if (generateBtn.disabled) return;  // already running
-  generateBtn.disabled = true;       // disable immediately
-
+  generateBtn.disabled = true; // Disable immediately
   hideError();
   showLoading();
 
@@ -95,8 +93,29 @@ generateBtn.addEventListener('click', async () => {
     await processFile(selectedFile, (pct, msg) => setProgress(pct, msg));
   } catch (err) {
     showError(err.message || 'Something went wrong. Please try again.');
+
+    // If it’s a rate limit error, prevent further clicks for a while
+    if (err.message.toLowerCase().includes('rate limit')) {
+      rateLimited = true;
+      generateBtn.disabled = true;
+      let retryTime = 60; // seconds
+      loadingMsgEl.textContent = `Rate limit hit. Please wait ${retryTime}s...`;
+
+      const interval = setInterval(() => {
+        retryTime--;
+        loadingMsgEl.textContent = `Rate limit hit. Please wait ${retryTime}s...`;
+        if (retryTime <= 0) {
+          clearInterval(interval);
+          rateLimited = false;
+          generateBtn.disabled = false;
+          hideLoading();
+        }
+      }, 1000);
+    }
   } finally {
-    hideLoading();
-    generateBtn.disabled = false;   // re-enable after processing
+    if (!rateLimited) {
+      hideLoading();
+      generateBtn.disabled = false;
+    }
   }
 });
