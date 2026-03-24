@@ -1,9 +1,9 @@
-// ─── Aced — app.js ───────────────────────────────────────────────────────────
+// ─── Aced — app.js ───────────────────────────$
 // Handles all UI logic for the upload page (index.html)
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────$ById('error-msg');
 
-const dropZone       = document.getElementById('drop-zone');
-const fileInput      = document.getElementById('file-input');
+const dropZone       = document.getElementById('drop-zone');  
+const fileInput      = document.getElementById('file-input'); 
 const fileSelectedEl = document.getElementById('file-selected');
 const fileIconEl     = document.getElementById('file-icon');
 const fileNameEl     = document.getElementById('file-name');
@@ -20,9 +20,9 @@ const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED  = ['pdf', 'doc', 'docx', 'txt'];
 let selectedFile = null;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────$
 
-function getIcon(ext) {
+function getIcon(ext) { 
   return { pdf: '📕', docx: '📘', doc: '📘', txt: '📝' }[ext] || '📄';
 }
 
@@ -34,9 +34,9 @@ function formatSize(b) {
 
 function setFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
-  if (!ALLOWED.includes(ext)) { showError(`"${file.name}" isn't supported. Use PDF, Word, or .txt.`); return; }
-  if (file.size > MAX_SIZE)   { showError(`File is ${formatSize(file.size)} — max is 10MB.`); return; }
-  selectedFile = file;
+  if (!ALLOWED.includes(ext)) { showError(`"${file.name}" isn't supported. Use ${ALLOWED.join(', ')}`); return; }
+  if (file.size > MAX_SIZE)   { showError(`File is ${formatSize(file.size)} — max size is ${formatSize(MAX_SIZE)}`); return; }
+  selectedFile = file;  
   hideError();
   fileIconEl.textContent = getIcon(ext);
   fileNameEl.textContent = file.name;
@@ -46,7 +46,7 @@ function setFile(file) {
 }
 
 function clearFile() {
-  selectedFile = null;
+  selectedFile = null;  
   fileInput.value = '';
   fileSelectedEl.classList.remove('show');
   generateBtn.disabled = true;
@@ -79,16 +79,24 @@ dropZone.addEventListener('drop', e => {
 
 fileRemoveBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
 
+// ── Generate Button with Spam Prevention ─────────────────────────────────────
+
 generateBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
-  generateBtn.disabled = true;
+
+  // Prevent spamming
+  if (generateBtn.disabled) return;  // already running
+  generateBtn.disabled = true;       // disable immediately
+
   hideError();
   showLoading();
+
   try {
     await processFile(selectedFile, (pct, msg) => setProgress(pct, msg));
   } catch (err) {
-    hideLoading();
-    generateBtn.disabled = false;
     showError(err.message || 'Something went wrong. Please try again.');
+  } finally {
+    hideLoading();
+    generateBtn.disabled = false;   // re-enable after processing
   }
 });
