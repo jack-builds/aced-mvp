@@ -66,6 +66,27 @@ function setProgress(pct, msg) {
   if (msg) loadingMsgEl.textContent = msg;
 }
 
+// ── Retry Countdown ─────────────────────────
+
+function startRetryCountdown(seconds) {
+  rateLimited = true;
+  generateBtn.disabled = true;
+  let retryTime = seconds;
+
+  loadingMsgEl.textContent = `Rate limit hit. Please wait ${retryTime}s...`;
+
+  const interval = setInterval(() => {
+    retryTime--;
+    loadingMsgEl.textContent = `Rate limit hit. Please wait ${retryTime}s...`;
+    if (retryTime <= 0) {
+      clearInterval(interval);
+      rateLimited = false;
+      generateBtn.disabled = false;
+      hideLoading();
+    }
+  }, 1000);
+}
+
 // ── Events ───────────────────────────────────────────────────────────────────
 
 fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
@@ -94,23 +115,17 @@ generateBtn.addEventListener('click', async () => {
   } catch (err) {
     showError(err.message || 'Something went wrong. Please try again.');
 
-    // If it’s a rate limit error, prevent further clicks for a while
+    // Rate limit handling
     if (err.message.toLowerCase().includes('rate limit')) {
-      rateLimited = true;
-      generateBtn.disabled = true;
-      let retryTime = 60; // seconds
-      loadingMsgEl.textContent = `Rate limit hit. Please wait ${retryTime}s...`;
+      // Default fallback in case header is missing
+      let retryTime = 180; // 3 minutes
 
-      const interval = setInterval(() => {
-        retryTime--;
-        loadingMsgEl.textContent = `Rate limit hit. Please wait ${retryTime}s...`;
-        if (retryTime <= 0) {
-          clearInterval(interval);
-          rateLimited = false;
-          generateBtn.disabled = false;
-          hideLoading();
-        }
-      }, 1000);
+      // Use Retry-After header if available
+      if (err.response && err.response.headers && err.response.headers['retry-after']) {
+        retryTime = parseInt(err.response.headers['retry-after'], 10);
+      }
+
+      startRetryCountdown(retryTime);
     }
   } finally {
     if (!rateLimited) {
