@@ -185,7 +185,7 @@ async function callGemini(studyGuideText, onProgress, retryCount = 0) {
 
   if (!response.ok) {
     if (response.status === 429 && retryCount < MAX_RETRIES) {
-      const waitSeconds = Math.pow(2, retryCount) * 10; // 10s, 20s, 40s
+      const waitSeconds = 10; // always wait 10s between retries
       for (let i = waitSeconds; i > 0; i--) {
         onProgress(50, `Aced is popular right now! Retrying in ${i}s...`);
         await sleep(1000);
