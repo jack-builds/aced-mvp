@@ -1,8 +1,6 @@
 // ─── Aced — processor.js ─────────────────────────────────────────────────────
 // Handles file reading + Gemini API call + localStorage output
-// Replace YOUR_API_KEY_HERE with your actual Gemini API key when you have it
 // ─────────────────────────────────────────────────────────────────────────────
-
 
 const PROMPT_INSTRUCTIONS = `You are an expert study guide creator. A student will give you their study guide content and you will convert it into a structured, detailed study plan that gives them everything they need to actually learn the material — not just a list of topics to look up.
 
@@ -57,7 +55,7 @@ Additional rules:
 - Emojis should match the subject matter
 - Only use content from the study guide — never hallucinate or add outside information
 - If the guide has a lot of content, prioritize the most testable facts
-- - Write items as active study tasks, not passive facts. Frame them so the student knows exactly what to DO. Examples:
+- Write items as active study tasks, not passive facts. Frame them so the student knows exactly what to DO. Examples:
   - "Memorize: Porifera (sponges) = no true tissues, filter feeders. Test yourself by covering and recalling."
   - "Understand & explain: Ser vs Estar — ser for permanent traits, estar for temporary states. Can you make up 2 examples of each?"
   - "Work through: Quadratic formula x = (-b ± √(b²-4ac)) / 2a — solve one practice problem from scratch."
@@ -86,13 +84,11 @@ async function processFile(file, onProgress) {
 
     onProgress(100, 'Done! Opening your plan...');
 
-    // Small delay so user sees 100%
     await sleep(600);
     window.location.href = 'generate.html';
 
   } catch (err) {
-    console.error('processFile error:', err);
-    throw err; // Re-throw so index.html can show the error
+    throw err;
   }
 }
 
@@ -101,17 +97,9 @@ async function processFile(file, onProgress) {
 async function readFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
 
-  if (ext === 'txt') {
-    return await readAsText(file);
-  }
-
-  if (ext === 'pdf') {
-    return await readPDF(file);
-  }
-
-  if (ext === 'docx' || ext === 'doc') {
-    return await readWord(file);
-  }
+  if (ext === 'txt') return await readAsText(file);
+  if (ext === 'pdf') return await readPDF(file);
+  if (ext === 'docx' || ext === 'doc') return await readWord(file);
 
   throw new Error(`Unsupported file type: .${ext}`);
 }
@@ -126,7 +114,6 @@ function readAsText(file) {
 }
 
 async function readPDF(file) {
-  // Load pdf.js from CDN if not already loaded
   if (!window.pdfjsLib) {
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -152,7 +139,6 @@ async function readPDF(file) {
 }
 
 async function readWord(file) {
-  // Load mammoth.js from CDN if not already loaded
   if (!window.mammoth) {
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
   }
@@ -169,9 +155,7 @@ async function readWord(file) {
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
-      resolve(); return;
-    }
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
     const script = document.createElement('script');
     script.src = src;
     script.onload = resolve;
@@ -182,7 +166,8 @@ function loadScript(src) {
 
 
 // ─── Gemini API Call (via secure Netlify Function) ────────────────────────────
-async function callGemini(studyGuideText, onProgress) {
+async function callGemini(studyGuideText, onProgress, retryCount = 0) {
+  const MAX_RETRIES = 3;
   const trimmed = studyGuideText.slice(0, 15000);
 
   onProgress(50, 'AI is reading your guide...');
@@ -199,7 +184,15 @@ async function callGemini(studyGuideText, onProgress) {
   const data = await response.json();
 
   if (!response.ok) {
-    if (response.status === 429) throw new Error('Rate limit hit. Wait a minute and try again.');
+    if (response.status === 429 && retryCount < MAX_RETRIES) {
+      const waitSeconds = Math.pow(2, retryCount) * 10; // 10s, 20s, 40s
+      for (let i = waitSeconds; i > 0; i--) {
+        onProgress(50, `Aced is popular right now! Retrying in ${i}s...`);
+        await sleep(1000);
+      }
+      return callGemini(studyGuideText, onProgress, retryCount + 1);
+    }
+    if (response.status === 429) throw new Error('Aced is really busy right now. Please try again in a few minutes!');
     if (response.status === 401) throw new Error('API key error. Contact support.');
     throw new Error(data.error || `Error (${response.status})`);
   }
@@ -211,9 +204,9 @@ async function callGemini(studyGuideText, onProgress) {
   return data.rawText;
 }
 
+
 // ─── JSON Parsing ─────────────────────────────────────────────────────────────
 function parsePlan(rawText) {
-  // Strip markdown code fences if Gemini added them anyway
   let cleaned = rawText.trim();
   cleaned = cleaned.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
 
@@ -221,7 +214,6 @@ function parsePlan(rawText) {
   try {
     plan = JSON.parse(cleaned);
   } catch (e) {
-    // Try to extract JSON from within the text
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (match) {
       plan = JSON.parse(match[0]);
@@ -230,12 +222,10 @@ function parsePlan(rawText) {
     }
   }
 
-  // Validate structure
   if (!plan.title || !Array.isArray(plan.sections) || plan.sections.length === 0) {
     throw new Error('AI returned an unexpected format. Please try again.');
   }
 
-// Ensure IDs exist + strip markdown formatting from items
   plan.sections = plan.sections.map((s, i) => ({
     id: s.id || `section_${i + 1}`,
     title: s.title || `Section ${i + 1}`,
@@ -246,7 +236,6 @@ function parsePlan(rawText) {
     ) : []
   }));
 
-  // Calculate totalTime if missing
   if (!plan.totalTime) {
     const total = plan.sections.reduce((sum, s) => sum + parseInt(s.timeEstimate || 0), 0);
     plan.totalTime = String(total);
