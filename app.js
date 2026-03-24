@@ -19,10 +19,39 @@ const loadingPctEl   = document.getElementById('loading-pct');
 const MAX_SIZE = 10 * 1024 * 1024;
 const ALLOWED  = ['pdf', 'doc', 'docx', 'txt'];
 let selectedFile = null;
-let rateLimited = false; // Flag to prevent clicks during rate limit
+let rateLimited = false;
+
+// ── Request queue for throttling ─────────────────
+let requestQueue = [];
+let processingQueue = false;
+
+async function processQueueHandler(file) {
+  return new Promise((resolve) => {
+    requestQueue.push({ file, resolve });
+    if (!processingQueue) runQueue();
+  });
+}
+
+async function runQueue() {
+  if (requestQueue.length === 0) {
+    processingQueue = false;
+    return;
+  }
+
+  processingQueue = true;
+  const { file, resolve } = requestQueue.shift();
+
+  try {
+    await processFile(file, (pct, msg) => setProgress(pct, msg));
+    resolve();
+  } catch (err) {
+    resolve(err);
+  } finally {
+    runQueue();
+  }
+}
 
 // ── Helpers ───────────────────────────────$
-
 function getIcon(ext) {
   return { pdf: '📕', docx: '📘', doc: '📘', txt: '📝' }[ext] || '📄';
 }
@@ -66,8 +95,7 @@ function setProgress(pct, msg) {
   if (msg) loadingMsgEl.textContent = msg;
 }
 
-// ── Retry Countdown ─────────────────────────
-
+// ── Retry Countdown with Auto-Retry ─────────────────
 function startRetryCountdown(seconds) {
   rateLimited = true;
   generateBtn.disabled = true;
@@ -83,12 +111,14 @@ function startRetryCountdown(seconds) {
       rateLimited = false;
       generateBtn.disabled = false;
       hideLoading();
+
+      // Auto-retry queued requests
+      if (requestQueue.length > 0 && !processingQueue) runQueue();
     }
   }, 1000);
 }
 
-// ── Events ───────────────────────────────────────────────────────────────────
-
+// ── Events ─────────────────────────────────
 fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
 
 dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -101,30 +131,25 @@ dropZone.addEventListener('drop', e => {
 
 fileRemoveBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
 
-// ── Generate Button with Spam & Rate-Limit Protection ─────────────────────────
-
+// ── Generate Button ─────────────────────────
 generateBtn.addEventListener('click', async () => {
-  if (!selectedFile || generateBtn.disabled || rateLimited) return; // Block clicks if no file, disabled, or rate-limited
+  if (!selectedFile || generateBtn.disabled || rateLimited) return;
 
-  generateBtn.disabled = true; // Disable immediately
+  generateBtn.disabled = true;
   hideError();
   showLoading();
 
   try {
-    await processFile(selectedFile, (pct, msg) => setProgress(pct, msg));
+    const err = await processQueueHandler(selectedFile);
+    if (err) throw err;
   } catch (err) {
     showError(err.message || 'Something went wrong. Please try again.');
 
-    // Rate limit handling
     if (err.message.toLowerCase().includes('rate limit')) {
-      // Default fallback in case header is missing
-      let retryTime = 180; // 3 minutes
-
-      // Use Retry-After header if available
+      let retryTime = 180; // fallback 3 minutes
       if (err.response && err.response.headers && err.response.headers['retry-after']) {
         retryTime = parseInt(err.response.headers['retry-after'], 10);
       }
-
       startRetryCountdown(retryTime);
     }
   } finally {
