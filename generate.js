@@ -2,18 +2,87 @@
 // Handles all UI logic for the study plan page (generate.html)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const raw = localStorage.getItem('acedStudyPlan');
 const app = document.getElementById('app');
 let currentPlan = null;
+let currentPlanId = null;
 
 const state = {
-  checked:   {},  // { "section_1__0": true, ... }
-  collapsed: {},  // { "section_1": false, ... }
+  checked:   {},
+  collapsed: {},
 };
 
-// ── Boot ─────────────────────────────────────────────────────────────────────
+// ─── Storage Helpers ──────────────────────────────────────────────────────────
 
-if (!raw) {
+function getAllPlans() {
+  try {
+    return JSON.parse(localStorage.getItem('acedPlans') || '{}');
+  } catch { return {}; }
+}
+
+function savePlanToLibrary(plan) {
+  const plans = getAllPlans();
+  const id = plan.id || `plan_${Date.now()}`;
+  plan.id = id;
+  plans[id] = {
+    id,
+    title: plan.title,
+    totalTime: plan.totalTime,
+    sections: plan.sections,
+    savedAt: Date.now(),
+    checked: {},
+  };
+  localStorage.setItem('acedPlans', JSON.stringify(plans));
+  return id;
+}
+
+function saveProgress(planId, checked) {
+  const plans = getAllPlans();
+  if (plans[planId]) {
+    plans[planId].checked = checked;
+    localStorage.setItem('acedPlans', JSON.stringify(plans));
+  }
+}
+
+function loadPlan(planId) {
+  const plans = getAllPlans();
+  return plans[planId] || null;
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+
+// Check if we're loading a specific saved plan
+const urlParams = new URLSearchParams(window.location.search);
+const loadId = urlParams.get('plan');
+
+if (loadId) {
+  // Loading a saved plan from My Plans page
+  const saved = loadPlan(loadId);
+  if (saved) {
+    currentPlanId = loadId;
+    Object.assign(state.checked, saved.checked || {});
+    renderPlan(saved);
+  } else {
+    showError();
+  }
+} else {
+  // Loading a freshly generated plan from localStorage
+  const raw = localStorage.getItem('acedStudyPlan');
+  if (!raw) {
+    showError();
+  } else {
+    try {
+      const plan = JSON.parse(raw);
+      currentPlanId = savePlanToLibrary(plan);
+      plan.id = currentPlanId;
+      renderPlan(plan);
+      localStorage.removeItem('acedStudyPlan'); // clean up temp storage
+    } catch (e) {
+      showError();
+    }
+  }
+}
+
+function showError() {
   app.innerHTML = `
     <div class="error-state">
       <div class="icon">📋</div>
@@ -26,22 +95,9 @@ if (!raw) {
         Upload a Study Guide
       </a>
     </div>`;
-} else {
-  try {
-    const plan = JSON.parse(raw);
-    renderPlan(plan);
-  } catch (e) {
-    app.innerHTML = `
-      <div class="error-state">
-        <div class="icon">⚠️</div>
-        <h2>Something went wrong</h2>
-        <p>We couldn't read your study plan. Please try uploading again.</p>
-        <a href="index.html" class="go-back-btn">Try Again</a>
-      </div>`;
-  }
 }
 
-// ── Render ───────────────────────────────────────────────────────────────────
+// ─── Render ───────────────────────────────────────────────────────────────────
 
 function renderPlan(plan) {
   currentPlan = plan;
@@ -56,13 +112,13 @@ function renderPlan(plan) {
   app.innerHTML = `
     <div class="plan-header">
       <h1 class="plan-title">${esc(plan.title)}</h1>
-<p class="plan-subtitle">Work through each topic below. Check it off when you feel confident you know it. 💪</p>
+      <p class="plan-subtitle">Work through each topic below. Check it off when you feel confident you know it. 💪</p>
       <div class="plan-meta">
         <span class="meta-pill">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/>
           </svg>
-          ${hrStr}
+          <span id="time-remaining">${hrStr}</span> remaining
         </span>
         <span class="meta-pill">
           <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -154,7 +210,7 @@ function renderItem(sectionId, index, text) {
     </div>`;
 }
 
-// ── Interactions ─────────────────────────────────────────────────────────────
+// ─── Interactions ─────────────────────────────────────────────────────────────
 
 function toggleSection(id) {
   const card = document.getElementById('card-' + id);
@@ -166,6 +222,7 @@ function toggleItem(key, plan) {
   const row = document.querySelector(`[data-key="${key}"]`);
   if (row) row.classList.toggle('done', state.checked[key]);
   updateProgress(plan);
+  if (currentPlanId) saveProgress(currentPlanId, state.checked);
 }
 
 function updateProgress(plan) {
@@ -179,6 +236,23 @@ function updateProgress(plan) {
   if (fillEl) fillEl.style.width = pct + '%';
   if (pctEl)  pctEl.textContent  = pct + '%';
   if (doneEl) doneEl.textContent = done;
+
+  // Update time remaining
+  const timeEl = document.getElementById('time-remaining');
+  if (timeEl) {
+    let minsLeft = 0;
+    plan.sections.forEach(s => {
+      const sTotal = s.items.length;
+      const sDone  = s.items.filter((_, i) => state.checked[`${s.id}__${i}`]).length;
+      const sRemaining = sTotal - sDone;
+      const minsPerItem = parseInt(s.timeEstimate) / sTotal;
+      minsLeft += Math.round(minsPerItem * sRemaining);
+    });
+    const hrStr = minsLeft >= 60
+      ? `${Math.floor(minsLeft/60)}h ${minsLeft%60>0?(minsLeft%60)+'m':''}`.trim()
+      : `${minsLeft}m`;
+    timeEl.textContent = minsLeft > 0 ? hrStr : 'Done!';
+  }
 
   plan.sections.forEach(s => {
     const sTotal = s.items.length;
@@ -200,17 +274,18 @@ function updateProgress(plan) {
       }
     } else {
       banner.classList.remove('show');
-      delete banner.dataset?.fired;
+      delete banner.dataset.fired;
     }
   }
 }
 
 function resetAll() {
   Object.keys(state.checked).forEach(k => delete state.checked[k]);
+  if (currentPlanId) saveProgress(currentPlanId, state.checked);
   if (currentPlan) renderPlan(currentPlan);
 }
 
-// ── Utils ─────────────────────────────────────────────────────────────────────
+// ─── Utils ────────────────────────────────────────────────────────────────────
 
 function totalItems(plan) {
   return plan.sections.reduce((a, s) => a + s.items.length, 0);
@@ -226,7 +301,7 @@ function esc(str) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── Confetti ──────────────────────────────────────────────────────────────────
+// ─── Confetti ─────────────────────────────────────────────────────────────────
 
 function launchConfetti() {
   const canvas = document.getElementById('confetti');
