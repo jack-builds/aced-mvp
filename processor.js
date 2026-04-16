@@ -168,7 +168,7 @@ function loadScript(src) {
 // ─── Gemini API Call (via secure Netlify Function) ────────────────────────────
 async function callGemini(studyGuideText, onProgress, retryCount = 0) {
   const MAX_RETRIES = 3;
-  const trimmed = studyGuideText.slice(0, 15000);
+  const trimmed = studyGuideText.slice(0, 12000);
 
   onProgress(50, 'AI is reading your guide...');
 
@@ -207,37 +207,70 @@ async function callGemini(studyGuideText, onProgress, retryCount = 0) {
 
 // ─── JSON Parsing ─────────────────────────────────────────────────────────────
 function parsePlan(rawText) {
-  let cleaned = rawText.trim();
-  cleaned = cleaned.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-
-  let plan;
-  try {
-    plan = JSON.parse(cleaned);
-  } catch (e) {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (match) {
-      plan = JSON.parse(match[0]);
-    } else {
-      throw new Error('AI returned invalid JSON. Please try again.');
-    }
+  if (!rawText) {
+    throw new Error('No response from AI. Try again.');
   }
 
+  let text = rawText.trim();
+
+  // ─── 1. Remove markdown wrappers ───────────────────────────────────────────
+  text = text
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+  // ─── 2. Extract JSON object safely ─────────────────────────────────────────
+  const match = text.match(/\{[\s\S]*\}/);
+
+  if (!match) {
+    console.error("❌ No JSON found:", text);
+    throw new Error('AI returned invalid JSON. Please try again.');
+  }
+
+  let jsonString = match[0];
+
+  // ─── 3. Fix common AI mistakes ─────────────────────────────────────────────
+  jsonString = jsonString
+    .replace(/,\s*}/g, '}')   // trailing commas in objects
+    .replace(/,\s*]/g, ']')   // trailing commas in arrays
+    .replace(/\n/g, ' ')      // weird line breaks
+    .trim();
+
+  let plan;
+
+  try {
+    plan = JSON.parse(jsonString);
+  } catch (e) {
+    console.error("❌ Final JSON parse failed:", jsonString);
+    throw new Error('AI returned invalid JSON. Please try again.');
+  }
+
+  // ─── 4. Validate structure ─────────────────────────────────────────────────
   if (!plan.title || !Array.isArray(plan.sections) || plan.sections.length === 0) {
     throw new Error('AI returned an unexpected format. Please try again.');
   }
 
+  // ─── 5. Normalize sections ─────────────────────────────────────────────────
   plan.sections = plan.sections.map((s, i) => ({
     id: s.id || `section_${i + 1}`,
     title: s.title || `Section ${i + 1}`,
     timeEstimate: s.timeEstimate || '15',
     emoji: s.emoji || '📚',
-    items: Array.isArray(s.items) ? s.items.map(item =>
-      item.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')
-    ) : []
+    items: Array.isArray(s.items)
+      ? s.items.map(item =>
+          String(item)
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/\*(.*?)\*/g, '$1')
+        )
+      : []
   }));
 
+  // ─── 6. Fix total time if missing ──────────────────────────────────────────
   if (!plan.totalTime) {
-    const total = plan.sections.reduce((sum, s) => sum + parseInt(s.timeEstimate || 0), 0);
+    const total = plan.sections.reduce(
+      (sum, s) => sum + parseInt(s.timeEstimate || 0),
+      0
+    );
     plan.totalTime = String(total);
   }
 
