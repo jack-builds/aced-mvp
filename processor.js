@@ -92,7 +92,7 @@ async function processFile(file, onProgress) {
     }
 
     onProgress(30, 'Sending to AI...');
-    const planJSON = await callGemini(text, onProgress);
+    const planJSON = await generateWithRetry(text, onProgress);
 
     onProgress(85, 'Building your study plan...');
     const plan = parsePlan(planJSON);
@@ -183,9 +183,32 @@ function loadScript(src) {
 
 
 // ─── Gemini API Call (via secure Netlify Function) ────────────────────────────
+
+async function generateWithRetry(text, onProgress) {
+  try {
+    // First attempt (full size)
+    return await callGemini(text, onProgress);
+  } catch (err) {
+    console.warn('Retrying with smaller input...');
+
+    // Second attempt (cut in half)
+    const smaller = text.slice(0, 6000);
+
+    try {
+      return await callGemini(smaller, onProgress);
+    } catch (err2) {
+      console.warn('Retrying with even smaller input...');
+
+      // Final attempt (very small)
+      const smallest = text.slice(0, 3000);
+      return await callGemini(smallest, onProgress);
+    }
+  }
+}
+
 async function callGemini(studyGuideText, onProgress, retryCount = 0) {
   const MAX_RETRIES = 3;
-  const trimmed = studyGuideText.slice(0, 10000);
+  const trimmed = studyGuideText;
 
   onProgress(50, 'AI is reading your guide...');
 
