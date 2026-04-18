@@ -68,10 +68,22 @@ Additional rules:
 async function processFile(file, onProgress) {
   try {
     onProgress(10, 'Reading your file...');
+
+    // ✅ 1. Check file size BEFORE reading (saves resources)
+    if (file.size > 1.5 * 1024 * 1024) {
+      throw new Error('File too large. Please upload a smaller file.');
+    }
+
     const text = await readFile(file);
 
+    // ✅ 2. Validate extracted text
     if (!text || text.trim().length < 20) {
       throw new Error('The file appears to be empty or too short to process.');
+    }
+
+    // ✅ 3. HARD TEXT LIMIT (this is the big fix)
+    if (text.length > 10000) {
+      throw new Error('Study guide too long. Please keep it under ~3–5 pages.');
     }
 
     onProgress(30, 'Sending to AI...');
@@ -168,7 +180,7 @@ function loadScript(src) {
 // ─── Gemini API Call (via secure Netlify Function) ────────────────────────────
 async function callGemini(studyGuideText, onProgress, retryCount = 0) {
   const MAX_RETRIES = 3;
-  const trimmed = studyGuideText.slice(0, 12000);
+  const trimmed = studyGuideText.slice(0, 10000);
 
   onProgress(50, 'AI is reading your guide...');
 
@@ -207,50 +219,37 @@ async function callGemini(studyGuideText, onProgress, retryCount = 0) {
 
 // ─── JSON Parsing ─────────────────────────────────────────────────────────────
 function parsePlan(rawText) {
-  if (!rawText) {
-    throw new Error('No response from AI. Try again.');
-  }
+  let cleaned = rawText.trim();
 
-  let text = rawText.trim();
-
-  // ─── 1. Remove markdown wrappers ───────────────────────────────────────────
-  text = text
-    .replace(/```json/gi, '')
-    .replace(/```/g, '')
-    .trim();
-
-  // ─── 2. Extract JSON object safely ─────────────────────────────────────────
-  const match = text.match(/\{[\s\S]*\}/);
-
-  if (!match) {
-    console.error("❌ No JSON found:", text);
-    throw new Error('AI returned invalid JSON. Please try again.');
-  }
-
-  let jsonString = match[0];
-
-  // ─── 3. Fix common AI mistakes ─────────────────────────────────────────────
-  jsonString = jsonString
-    .replace(/,\s*}/g, '}')   // trailing commas in objects
-    .replace(/,\s*]/g, ']')   // trailing commas in arrays
-    .replace(/\n/g, ' ')      // weird line breaks
+  // Remove markdown if AI adds it
+  cleaned = cleaned
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/```\s*$/i, '')
     .trim();
 
   let plan;
 
   try {
-    plan = JSON.parse(jsonString);
+    plan = JSON.parse(cleaned);
   } catch (e) {
-    console.error("❌ Final JSON parse failed:", jsonString);
-    throw new Error('AI returned invalid JSON. Please try again.');
+    // Try extracting JSON block safely
+    const match = cleaned.match(/\{[\s\S]*\}$/);
+    if (match) {
+      try {
+        plan = JSON.parse(match[0]);
+      } catch {
+        throw new Error('AI response was cut off. Try a smaller file.');
+      }
+    } else {
+      throw new Error('AI returned invalid JSON. Please try again.');
+    }
   }
 
-  // ─── 4. Validate structure ─────────────────────────────────────────────────
   if (!plan.title || !Array.isArray(plan.sections) || plan.sections.length === 0) {
-    throw new Error('AI returned an unexpected format. Please try again.');
+    throw new Error('AI returned an unexpected format.');
   }
 
-  // ─── 5. Normalize sections ─────────────────────────────────────────────────
   plan.sections = plan.sections.map((s, i) => ({
     id: s.id || `section_${i + 1}`,
     title: s.title || `Section ${i + 1}`,
@@ -258,14 +257,11 @@ function parsePlan(rawText) {
     emoji: s.emoji || '📚',
     items: Array.isArray(s.items)
       ? s.items.map(item =>
-          String(item)
-            .replace(/\*\*(.*?)\*\*/g, '$1')
-            .replace(/\*(.*?)\*/g, '$1')
+          item.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')
         )
-      : []
+      : [],
   }));
 
-  // ─── 6. Fix total time if missing ──────────────────────────────────────────
   if (!plan.totalTime) {
     const total = plan.sections.reduce(
       (sum, s) => sum + parseInt(s.timeEstimate || 0),
@@ -276,7 +272,6 @@ function parsePlan(rawText) {
 
   return plan;
 }
-
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 function sleep(ms) {
