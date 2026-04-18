@@ -1,122 +1,102 @@
 // ─── Aced — processor.js ─────────────────────────────────────────────────────
-// Handles file reading + Gemini API call + localStorage output
+// FINAL: stable, chunked, production-ready
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PROMPT_INSTRUCTIONS = `You are an expert study guide creator. A student will give you their study guide content and you will convert it into a structured, detailed study plan that gives them everything they need to actually learn the material — not just a list of topics to look up.
 
-Return ONLY valid JSON — no markdown, no backticks, no explanation. Just the raw JSON object.
+// ─── PROMPTS ─────────────────────────────────────────────────────────────────
 
-Use this exact format:
+// Small file (full generation)
+const FULL_PROMPT = `You are an expert study guide creator.
+
+Return ONLY valid JSON:
+
 {
-  "title": "Short descriptive title of the study guide topic",
-  "totalTime": "total estimated minutes as a number string e.g. 60",
+  "title": "Short title",
+  "totalTime": "number",
   "sections": [
     {
-      "id": "section_1",
       "title": "Section name",
-      "timeEstimate": "estimated minutes as a number string e.g. 20",
-      "emoji": "one relevant emoji",
-      "items": [
-        "Item with full answer/content baked in",
-        "Another item with its answer",
-        "Another item with its answer"
-      ]
+      "timeEstimate": "number",
+      "emoji": "emoji",
+      "items": ["study item"]
     }
   ]
 }
 
-CRITICAL RULE — THE MOST IMPORTANT THING:
-Every item must include the actual answer, fact, or content — not just a prompt to go look it up.
-BAD:  "List the features of Porifera"
-GOOD: "Porifera: no true tissues/organs, filter feeders with pores (ostia). Example: sponges"
+Rules:
+- Each item MUST include the actual answer/content
+- Keep items short and actionable
+- No markdown
+- No explanation
+- Ensure valid JSON
+`;
 
-BAD:  "Know the quadratic formula"
-GOOD: "Quadratic formula: x = (-b ± √(b²-4ac)) / 2a — use when ax²+bx+c=0"
 
-BAD:  "Understand the causes of WW1"
-GOOD: "WW1 causes (MAIN): Militarism, Alliance systems (Triple Entente vs Triple Alliance), Imperialism, Nationalism — sparked by assassination of Archduke Franz Ferdinand, 1914"
+// 🔥 NEW IMPROVED CHUNK PROMPT
+const CHUNK_PROMPT = `
+You are creating PART of a study guide.
 
-BAD:  "Review vocabulary terms"
-GOOD: "Mitosis: cell division producing 2 identical daughter cells (for growth/repair). Phases: Prophase → Metaphase → Anaphase → Telophase"
+Return ONLY valid JSON.
 
-Subject-specific guidance:
-- Biology/Science: Include classification details, key features, examples, and processes with their steps
-- History: Include dates, names, causes, effects, and significance
-- Math/Physics: Include formulas, units, and a brief example of when/how to use them
-- Chemistry: Include equations, element symbols, and reaction types
-- English/Literature: Include character names, themes, quotes, and plot points
-- Vocabulary heavy subjects: Always format as "Term: definition + context/example"
-- Geography: Include locations, key facts, and relationships between places
-
-Additional rules:
-- Break content into 3-6 logical sections that follow the structure of the original guide
-- Each section should have 4-10 items
-- Time estimates should be realistic (2-4 min per item since items are detailed)
-- Emojis should match the subject matter
-- Only use content from the study guide — never hallucinate or add outside information
-- If the guide has a lot of content, prioritize the most testable facts
-- Write items as active study tasks, not passive facts. Frame them so the student knows exactly what to DO. Examples:
-  - "Memorize: Porifera (sponges) = no true tissues, filter feeders. Test yourself by covering and recalling."
-  - "Understand & explain: Ser vs Estar — ser for permanent traits, estar for temporary states. Can you make up 2 examples of each?"
-  - "Work through: Quadratic formula x = (-b ± √(b²-4ac)) / 2a — solve one practice problem from scratch."
-- Keep items concise but actionable — the student should know exactly what to do when they see it.
-- GOOD: "Porifera (sponges): no true tissues, filter feeders. Example: sea sponge"
-- BAD: "Phylum Porifera (Sponges): No true tissues/organs, sessile filter feeders with pores (ostia) and choanocytes (collar cells). Example: Sea sponge.
-
-IMPORTANT:
-- Keep the response concise and not overly long
-- Ensure the JSON is fully complete and properly closed
-- Do not exceed necessary detail
-
-IMPORTANT FOR LARGE FILES:
-- You may only receive PART of a study guide
-- Only generate 1–2 sections from THIS content
-- Do NOT try to cover the entire subject
-- Do NOT repeat generic sections like "Introduction"
-"`;
-
-// ─── Chunking Helper ─────────────────────────────────────────────
-function splitIntoChunks(text, chunkSize = 5000) {
-  const chunks = [];
-  let i = 0;
-
-  while (i < text.length) {
-    chunks.push(text.slice(i, i + chunkSize));
-    i += chunkSize;
-  }
-
-  return chunks;
+Format:
+{
+  "sections": [
+    {
+      "title": "string",
+      "timeEstimate": "number as string",
+      "emoji": "emoji",
+      "items": ["string"]
+    }
+  ]
 }
 
+Rules:
+- 1–3 sections ONLY
+- 4–8 items per section
+- Each item must include the actual answer/content
+- Keep items concise
+- ONLY use the provided text
+- DO NOT include title or totalTime
+- DO NOT repeat content unnecessarily
+- DO NOT cut off JSON
+`;
 
-// ─── Main entry point called by index.html ───────────────────────────────────
+
+// ─── MAIN ENTRY ──────────────────────────────────────────────────────────────
+
 async function processFile(file, onProgress) {
   try {
     onProgress(10, 'Reading your file...');
 
-   
-    if (file.size > 1.5 * 1024 * 1024) {
-      throw new Error('File too large. Please upload a smaller file.');
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('File too large (max 10MB)');
     }
 
     const text = await readFile(file);
 
-    
-    if (!text || text.trim().length < 20) {
-      throw new Error('The file appears to be empty or too short to process.');
+    if (!text || text.trim().length < 50) {
+      throw new Error('File is too empty to process');
     }
 
-    // CHUNKED GENERATION (THIS IS THE BIG CHANGE)
-    onProgress(30, 'Generating your study plan...');
-    const plan = await generateChunkedPlan(text, onProgress);
+    let plan;
 
-    onProgress(85, 'Finalizing your plan...');
+    // ✅ SMALL FILE → FULL PROMPT
+    if (text.length < 8000) {
+      onProgress(30, 'Generating study plan...');
+      const raw = await callGemini(text, FULL_PROMPT);
+      plan = parseFullPlan(raw);
+    }
+
+    // ✅ BIG FILE → CHUNKING
+    else {
+      onProgress(30, 'Processing large file...');
+      plan = await generateChunkedPlan(text, onProgress);
+    }
 
     localStorage.setItem('acedStudyPlan', JSON.stringify(plan));
 
     onProgress(100, 'Done! Opening your plan...');
-
-    await sleep(600);
+    await sleep(500);
     window.location.href = 'generate.html';
 
   } catch (err) {
@@ -125,25 +105,170 @@ async function processFile(file, onProgress) {
 }
 
 
-// ─── File Reading ─────────────────────────────────────────────────────────────
+// ─── CHUNKING ────────────────────────────────────────────────────────────────
+
+function splitIntoChunks(text, size = 4000) {
+  const chunks = [];
+  let i = 0;
+
+  while (i < text.length) {
+    chunks.push(text.slice(i, i + size));
+    i += size;
+  }
+
+  return chunks.slice(0, 5); // hard cap (safety)
+}
+
+
+async function generateChunkedPlan(text, onProgress) {
+  const chunks = splitIntoChunks(text);
+
+  let allSections = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    onProgress(40 + (i / chunks.length) * 40, `Processing ${i + 1}/${chunks.length}...`);
+
+    try {
+      const raw = await callGemini(chunks[i], CHUNK_PROMPT);
+      const parsed = safeParse(raw);
+
+      if (parsed.sections) {
+        allSections.push(...parsed.sections);
+      }
+
+    } catch (err) {
+      console.warn('Chunk failed, skipping...');
+    }
+  }
+
+  if (allSections.length === 0) {
+    throw new Error('Failed to generate study plan from this file.');
+  }
+
+  // normalize
+  const cleaned = allSections.map((s, i) => ({
+    id: `section_${i + 1}`,
+    title: s.title || `Section ${i + 1}`,
+    timeEstimate: s.timeEstimate || '15',
+    emoji: s.emoji || '📚',
+    items: Array.isArray(s.items) ? s.items : []
+  }));
+
+  return {
+    title: "Complete Study Plan",
+    totalTime: String(
+      cleaned.reduce((sum, s) => sum + (parseInt(s.timeEstimate) || 0), 0)
+    ),
+    sections: cleaned
+  };
+}
+
+
+// ─── GEMINI CALL ─────────────────────────────────────────────────────────────
+
+async function callGemini(text, prompt, retry = 0) {
+  const MAX_RETRIES = 2;
+
+  const res = await fetch('/.netlify/functions/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      studyGuideText: text,
+      promptInstructions: prompt
+    })
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    if (retry < MAX_RETRIES) {
+      await sleep(1500);
+
+      // 🔥 shrink input on retry
+      return callGemini(
+        text.slice(0, Math.floor(text.length * 0.7)),
+        prompt,
+        retry + 1
+      );
+    }
+
+    throw new Error(data.error || 'AI request failed');
+  }
+
+  if (!data.rawText) {
+    throw new Error('Empty AI response');
+  }
+
+  return data.rawText;
+}
+
+
+// ─── SAFE JSON PARSER ────────────────────────────────────────────────────────
+
+function safeParse(raw) {
+  let text = raw.trim();
+
+  text = text
+    .replace(/^```json/i, '')
+    .replace(/^```/, '')
+    .replace(/```$/, '')
+    .trim();
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('Invalid JSON');
+  }
+}
+
+
+// ─── FULL PLAN PARSER ────────────────────────────────────────────────────────
+
+function parseFullPlan(raw) {
+  const parsed = safeParse(raw);
+
+  if (!parsed.sections || !Array.isArray(parsed.sections)) {
+    throw new Error('Invalid plan format');
+  }
+
+  return {
+    title: parsed.title || "Study Plan",
+    totalTime: parsed.totalTime || "60",
+    sections: parsed.sections.map((s, i) => ({
+      id: `section_${i + 1}`,
+      title: s.title || `Section ${i + 1}`,
+      timeEstimate: s.timeEstimate || '15',
+      emoji: s.emoji || '📚',
+      items: Array.isArray(s.items) ? s.items : []
+    }))
+  };
+}
+
+
+// ─── FILE READING ────────────────────────────────────────────────────────────
+
 async function readFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
 
-  if (ext === 'txt') return await readAsText(file);
-  if (ext === 'pdf') return await readPDF(file);
-  if (ext === 'docx' || ext === 'doc') return await readWord(file);
+  if (ext === 'txt') return readAsText(file);
+  if (ext === 'pdf') return readPDF(file);
+  if (ext === 'docx' || ext === 'doc') return readWord(file);
 
   throw new Error(`Unsupported file type: .${ext}`);
 }
 
+
 function readAsText(file) {
-  return new Promise((resolve, reject) => {
+  return new Promise((res, rej) => {
     const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
-    reader.onerror = () => reject(new Error('Failed to read file.'));
+    reader.onload = e => res(e.target.result);
+    reader.onerror = () => rej(new Error('Failed to read file'));
     reader.readAsText(file);
   });
 }
+
 
 async function readPDF(file) {
   if (!window.pdfjsLib) {
@@ -152,205 +277,53 @@ async function readPDF(file) {
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  let fullText = '';
+  const pdf = await window.pdfjsLib.getDocument({
+    data: await file.arrayBuffer()
+  }).promise;
+
+  let text = '';
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const pageText = content.items.map(item => item.str).join(' ');
-    fullText += pageText + '\n\n';
+    text += content.items.map(i => i.str).join(' ') + '\n\n';
   }
 
-  if (!fullText.trim()) {
-    throw new Error('Could not extract text from this PDF. Try copying the text into a .txt file instead.');
+  if (text.trim().length < 100) {
+    throw new Error('This PDF may be scanned or unreadable.');
   }
 
-  return fullText;
+  return text;
 }
+
 
 async function readWord(file) {
   if (!window.mammoth) {
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js');
   }
 
-  const arrayBuffer = await file.arrayBuffer();
-  const result = await window.mammoth.extractRawText({ arrayBuffer });
-
-  if (!result.value.trim()) {
-    throw new Error('Could not extract text from this Word document. Try saving as .txt first.');
-  }
+  const result = await window.mammoth.extractRawText({
+    arrayBuffer: await file.arrayBuffer()
+  });
 
   return result.value;
 }
 
+
 function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-    const script = document.createElement('script');
-    script.src = src;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error(`Failed to load: ${src}`));
-    document.head.appendChild(script);
+  return new Promise((res, rej) => {
+    if (document.querySelector(`script[src="${src}"]`)) return res();
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = () => rej(new Error(`Failed to load ${src}`));
+    document.head.appendChild(s);
   });
 }
 
 
-// ─── Chunked Plan Generator ──────────────────────────────────────
-async function generateChunkedPlan(text, onProgress) {
-  const chunks = splitIntoChunks(text, 5000).slice(0, 4); // limit to 4 chunks max
+// ─── UTIL ────────────────────────────────────────────────────────────────────
 
-  let allSections = [];
-
-  for (let i = 0; i < chunks.length; i++) {
-    onProgress(40 + i * 10, `Processing part ${i + 1}/${chunks.length}...`);
-
-    const raw = await generateWithRetry(chunks[i], onProgress);
-    const parsed = parsePlan(raw);
-
-    if (parsed.sections) {
-      parsed.sections.forEach(section => {
-        const exists = allSections.some(
-          s => s.title.toLowerCase() === section.title.toLowerCase()
-        );
-        if (!exists) {
-          allSections.push(section);
-        }
-      });
-    }
-  }
-
-  return {
-    title: "Complete Study Plan",
-    totalTime: String(
-      allSections.reduce((sum, s) => sum + parseInt(s.timeEstimate || 0), 0)
-    ),
-    sections: allSections
-  };
-}
-
-
-// ─── Gemini API Call (via secure Netlify Function) ────────────────────────────
-
-async function generateWithRetry(text, onProgress) {
-  try {
-    // First attempt (full size)
-    return await callGemini(text, onProgress);
-  } catch (err) {
-    console.warn('Retrying with smaller input...');
-
-    // Second attempt (cut in half)
-    const smaller = text.slice(0, 6000);
-
-    try {
-      return await callGemini(smaller, onProgress);
-    } catch (err2) {
-      console.warn('Retrying with even smaller input...');
-
-      // Final attempt (very small)
-      const smallest = text.slice(0, 3000);
-      return await callGemini(smallest, onProgress);
-    }
-  }
-}
-
-async function callGemini(studyGuideText, onProgress, retryCount = 0) {
-  const MAX_RETRIES = 3;
-  const trimmed = studyGuideText.slice(0, 7000);
-
-  onProgress(50, 'AI is reading your guide...');
-
-  const response = await fetch('/.netlify/functions/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      studyGuideText: trimmed,
-      promptInstructions: PROMPT_INSTRUCTIONS
-    })
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    if (response.status === 429 && retryCount < MAX_RETRIES) {
-      const waitSeconds = 10; // always wait 10s between retries
-      for (let i = waitSeconds; i > 0; i--) {
-        onProgress(50, `Aced is popular right now! Retrying in ${i}s...`);
-        await sleep(1000);
-      }
-      return callGemini(studyGuideText, onProgress, retryCount + 1);
-    }
-    if (response.status === 429) throw new Error('Aced is really busy right now. Please try again in a few minutes!');
-    if (response.status === 401) throw new Error('API key error. Contact support.');
-    throw new Error(data.error || `Error (${response.status})`);
-  }
-
-  onProgress(70, 'Processing response...');
-
-  if (!data.rawText) throw new Error('No response from AI. Try again.');
-
-  return data.rawText;
-}
-
-
-// ─── JSON Parsing ─────────────────────────────────────────────────────────────
-function parsePlan(rawText) {
-  let cleaned = rawText.trim();
-
-  // Remove markdown if AI adds it
-  cleaned = cleaned
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```\s*$/i, '')
-    .trim();
-
-  let plan;
-
-  try {
-    plan = JSON.parse(cleaned);
-  } catch (e) {
-    // Try extracting JSON block safely
-    const match = cleaned.match(/\{[\s\S]*\}$/);
-    if (match) {
-      try {
-        plan = JSON.parse(match[0]);
-      } catch {
-        throw new Error('AI response was cut off. Try a smaller file.');
-      }
-    } else {
-      throw new Error('AI returned invalid JSON. Please try again.');
-    }
-  }
-
-  if (!plan.title || !Array.isArray(plan.sections) || plan.sections.length === 0) {
-    throw new Error('AI returned an unexpected format.');
-  }
-
-  plan.sections = plan.sections.map((s, i) => ({
-    id: s.id || `section_${i + 1}`,
-    title: s.title || `Section ${i + 1}`,
-    timeEstimate: s.timeEstimate || '15',
-    emoji: s.emoji || '📚',
-    items: Array.isArray(s.items)
-      ? s.items.map(item =>
-          item.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1')
-        )
-      : [],
-  }));
-
-  if (!plan.totalTime) {
-    const total = plan.sections.reduce(
-      (sum, s) => sum + parseInt(s.timeEstimate || 0),
-      0
-    );
-    plan.totalTime = String(total);
-  }
-
-  return plan;
-}
-
-// ─── Helper ───────────────────────────────────────────────────────────────────
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(r => setTimeout(r, ms));
 }
