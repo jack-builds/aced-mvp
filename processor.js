@@ -198,13 +198,7 @@ async function generateChunkedPlan(text, onProgress) {
     totalTime: String(
       allSections.reduce((sum, s) => sum + (parseInt(s.timeEstimate) || 0), 0)
     ),
-    sections: allSections.map((s, i) => ({
-      id: `section_${i + 1}`,
-      title: s.title || `Section ${i + 1}`,
-      timeEstimate: s.timeEstimate || '15',
-      emoji: s.emoji || '📚',
-      items: Array.isArray(s.items) ? s.items : []
-    }))
+    sections: mergeSections(allSections)
   };
 }
 
@@ -394,6 +388,40 @@ function loadScript(src) {
 
 
 // ─── UTIL ────────────────────────────────────────────────────────────────────
+
+function mergeSections(sections) {
+  const map = {};
+
+  for (const section of sections) {
+    const key = normalizeTitle(section.title);
+
+    if (!map[key]) {
+      map[key] = {
+        title: section.title,
+        timeEstimate: 0,
+        items: []
+      };
+    }
+
+    map[key].timeEstimate += parseInt(section.timeEstimate) || 0;
+
+    if (Array.isArray(section.items)) {
+      map[key].items.push(...section.items);
+    }
+  }
+
+  return Object.values(map).map((s, i) => ({
+    id: `section_${i + 1}`,
+    title: s.title,
+    timeEstimate: String(s.timeEstimate || 15),
+    emoji: '📚',
+    items: [...new Set(s.items)]
+  }));
+}
+
+function normalizeTitle(title) {
+  return title.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+}
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
