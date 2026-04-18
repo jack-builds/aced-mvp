@@ -69,33 +69,43 @@ IMPORTANT:
 - Do not exceed necessary detail"`;
 
 
+
+// ─── Chunking Helper ─────────────────────────────────────────────
+function splitIntoChunks(text, chunkSize = 5000) {
+  const chunks = [];
+  let i = 0;
+
+  while (i < text.length) {
+    chunks.push(text.slice(i, i + chunkSize));
+    i += chunkSize;
+  }
+
+  return chunks;
+}
+
+
 // ─── Main entry point called by index.html ───────────────────────────────────
 async function processFile(file, onProgress) {
   try {
     onProgress(10, 'Reading your file...');
 
-    // ✅ 1. Check file size BEFORE reading (saves resources)
+   
     if (file.size > 1.5 * 1024 * 1024) {
       throw new Error('File too large. Please upload a smaller file.');
     }
 
     const text = await readFile(file);
 
-    // ✅ 2. Validate extracted text
+    
     if (!text || text.trim().length < 20) {
       throw new Error('The file appears to be empty or too short to process.');
     }
 
-    // ✅ 3. HARD TEXT LIMIT (this is the big fix)
-    if (text.length > 10000) {
-      throw new Error('Study guide too long. Please keep it under ~3–5 pages.');
-    }
+    // CHUNKED GENERATION (THIS IS THE BIG CHANGE)
+    onProgress(30, 'Generating your study plan...');
+    const plan = await generateChunkedPlan(text, onProgress);
 
-    onProgress(30, 'Sending to AI...');
-    const planJSON = await generateWithRetry(text, onProgress);
-
-    onProgress(85, 'Building your study plan...');
-    const plan = parsePlan(planJSON);
+    onProgress(85, 'Finalizing your plan...');
 
     localStorage.setItem('acedStudyPlan', JSON.stringify(plan));
 
@@ -179,6 +189,33 @@ function loadScript(src) {
     script.onerror = () => reject(new Error(`Failed to load: ${src}`));
     document.head.appendChild(script);
   });
+}
+
+
+// ─── Chunked Plan Generator ──────────────────────────────────────
+async function generateChunkedPlan(text, onProgress) {
+  const chunks = splitIntoChunks(text, 5000).slice(0, 4); // limit to 4 chunks max
+
+  let allSections = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    onProgress(40 + i * 10, `Processing part ${i + 1}/${chunks.length}...`);
+
+    const raw = await generateWithRetry(chunks[i], onProgress);
+    const parsed = parsePlan(raw);
+
+    if (parsed.sections) {
+      allSections.push(...parsed.sections);
+    }
+  }
+
+  return {
+    title: "Complete Study Plan",
+    totalTime: String(
+      allSections.reduce((sum, s) => sum + parseInt(s.timeEstimate || 0), 0)
+    ),
+    sections: allSections
+  };
 }
 
 
