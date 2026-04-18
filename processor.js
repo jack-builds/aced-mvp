@@ -66,9 +66,14 @@ Additional rules:
 IMPORTANT:
 - Keep the response concise and not overly long
 - Ensure the JSON is fully complete and properly closed
-- Do not exceed necessary detail"`;
+- Do not exceed necessary detail
 
-
+IMPORTANT FOR LARGE FILES:
+- You may only receive PART of a study guide
+- Only generate 1–2 sections from THIS content
+- Do NOT try to cover the entire subject
+- Do NOT repeat generic sections like "Introduction"
+"`;
 
 // ─── Chunking Helper ─────────────────────────────────────────────
 function splitIntoChunks(text, chunkSize = 5000) {
