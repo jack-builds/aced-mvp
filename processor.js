@@ -61,7 +61,12 @@ Additional rules:
   - "Work through: Quadratic formula x = (-b ± √(b²-4ac)) / 2a — solve one practice problem from scratch."
 - Keep items concise but actionable — the student should know exactly what to do when they see it.
 - GOOD: "Porifera (sponges): no true tissues, filter feeders. Example: sea sponge"
-- BAD: "Phylum Porifera (Sponges): No true tissues/organs, sessile filter feeders with pores (ostia) and choanocytes (collar cells). Example: Sea sponge."`;
+- BAD: "Phylum Porifera (Sponges): No true tissues/organs, sessile filter feeders with pores (ostia) and choanocytes (collar cells). Example: Sea sponge.
+
+IMPORTANT:
+- Keep the response concise and not overly long
+- Ensure the JSON is fully complete and properly closed
+- Do not exceed necessary detail"`;
 
 
 // ─── Main entry point called by index.html ───────────────────────────────────
