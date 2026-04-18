@@ -210,7 +210,14 @@ async function generateChunkedPlan(text, onProgress) {
     const parsed = parsePlan(raw);
 
     if (parsed.sections) {
-      allSections.push(...parsed.sections);
+      parsed.sections.forEach(section => {
+        const exists = allSections.some(
+          s => s.title.toLowerCase() === section.title.toLowerCase()
+        );
+        if (!exists) {
+          allSections.push(section);
+        }
+      });
     }
   }
 
