@@ -1,5 +1,5 @@
 // ─── Aced — processor.js ─────────────────────────────────────────────────────
-// FINAL: stable, chunked, production-ready
+// FINAL: stable, chunked, production-ready (reinforced)
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -32,7 +32,7 @@ Rules:
 `;
 
 
-// 🔥 NEW IMPROVED CHUNK PROMPT
+// 🔥 CHUNK PROMPT
 const CHUNK_PROMPT = `
 You are creating PART of a study guide.
 
@@ -61,6 +61,22 @@ Rules:
 - DO NOT cut off JSON
 `;
 
+const STRUCTURE_PROMPT = `
+You are analyzing a study document.
+
+Return ONLY valid JSON:
+
+{
+  "sections": ["Section name 1", "Section name 2", "Section name 3"]
+}
+
+Rules:
+- 3–6 sections max
+- Use concise names
+- Based ONLY on the text
+- No explanation
+`;
+
 
 // ─── MAIN ENTRY ──────────────────────────────────────────────────────────────
 
@@ -80,15 +96,11 @@ async function processFile(file, onProgress) {
 
     let plan;
 
-    // ✅ SMALL FILE → FULL PROMPT
     if (text.length < 8000) {
       onProgress(30, 'Generating study plan...');
       const raw = await callGemini(text, FULL_PROMPT);
       plan = parseFullPlan(raw);
-    }
-
-    // ✅ BIG FILE → CHUNKING
-    else {
+    } else {
       onProgress(30, 'Processing large file...');
       plan = await generateChunkedPlan(text, onProgress);
     }
@@ -107,37 +119,73 @@ async function processFile(file, onProgress) {
 
 // ─── CHUNKING ────────────────────────────────────────────────────────────────
 
-function splitIntoChunks(text, size = 4000) {
-  const chunks = [];
-  let i = 0;
+function splitIntoSmartChunks(text, maxSize = 3500) {
+  let parts = text.split(/\n\s*\n/);
 
-  while (i < text.length) {
-    chunks.push(text.slice(i, i + size));
-    i += size;
+  // fallback for messy PDFs
+  if (parts.length < 5) {
+    parts = text.split(/\. |\n/);
   }
 
-  return chunks.slice(0, 5); // hard cap (safety)
+  const chunks = [];
+  let current = '';
+
+  for (let part of parts) {
+    if ((current + part).length > maxSize) {
+      if (current) chunks.push(current);
+      current = part;
+    } else {
+      current += ' ' + part;
+    }
+  }
+
+  if (current) chunks.push(current);
+
+  return chunks.slice(0, 6);
 }
 
 
 async function generateChunkedPlan(text, onProgress) {
-  const chunks = splitIntoChunks(text);
+  const structure = await getStructure(text);
+  const chunks = splitIntoSmartChunks(text);
 
   let allSections = [];
 
   for (let i = 0; i < chunks.length; i++) {
-    onProgress(40 + (i / chunks.length) * 40, `Processing ${i + 1}/${chunks.length}...`);
+    onProgress(
+      40 + (i / chunks.length) * 40,
+      `Processing ${i + 1}/${chunks.length}...`
+    );
 
     try {
-      const raw = await callGemini(chunks[i], CHUNK_PROMPT);
+      let chunkText = chunks[i];
+
+      // 🔥 HARD LIMIT (CRITICAL FIX)
+      chunkText = chunkText.slice(0, 4000);
+
+      // 🧠 structure hint
+      if (structure) {
+        chunkText =
+          `Document sections: ${structure.join(', ')}\n\n` +
+          `Current content:\n${chunkText}`;
+      }
+
+      const raw = await callGemini(chunkText, CHUNK_PROMPT);
       const parsed = safeParse(raw);
 
-      if (parsed.sections) {
+      // 🔥 VALIDATION FIX
+      if (
+        parsed.sections &&
+        Array.isArray(parsed.sections) &&
+        parsed.sections.length > 0
+      ) {
         allSections.push(...parsed.sections);
+      } else {
+        console.warn(`Chunk ${i + 1} returned bad structure`);
       }
 
     } catch (err) {
-      console.warn('Chunk failed, skipping...');
+      console.warn(`Chunk ${i + 1} failed`, err);
     }
   }
 
@@ -145,21 +193,18 @@ async function generateChunkedPlan(text, onProgress) {
     throw new Error('Failed to generate study plan from this file.');
   }
 
-  // normalize
-  const cleaned = allSections.map((s, i) => ({
-    id: `section_${i + 1}`,
-    title: s.title || `Section ${i + 1}`,
-    timeEstimate: s.timeEstimate || '15',
-    emoji: s.emoji || '📚',
-    items: Array.isArray(s.items) ? s.items : []
-  }));
-
   return {
     title: "Complete Study Plan",
     totalTime: String(
-      cleaned.reduce((sum, s) => sum + (parseInt(s.timeEstimate) || 0), 0)
+      allSections.reduce((sum, s) => sum + (parseInt(s.timeEstimate) || 0), 0)
     ),
-    sections: cleaned
+    sections: allSections.map((s, i) => ({
+      id: `section_${i + 1}`,
+      title: s.title || `Section ${i + 1}`,
+      timeEstimate: s.timeEstimate || '15',
+      emoji: s.emoji || '📚',
+      items: Array.isArray(s.items) ? s.items : []
+    }))
   };
 }
 
@@ -184,7 +229,6 @@ async function callGemini(text, prompt, retry = 0) {
     if (retry < MAX_RETRIES) {
       await sleep(1500);
 
-      // 🔥 shrink input on retry
       return callGemini(
         text.slice(0, Math.floor(text.length * 0.7)),
         prompt,
@@ -200,6 +244,32 @@ async function callGemini(text, prompt, retry = 0) {
   }
 
   return data.rawText;
+}
+
+
+// ─── STRUCTURE DETECTION ─────────────────────────────────────────────────────
+
+async function getStructure(text) {
+  try {
+    const sample = text.slice(0, 5000);
+    const raw = await callGemini(sample, STRUCTURE_PROMPT);
+    const parsed = safeParse(raw);
+
+    // 🔥 SANITY CHECK FIX
+    if (
+      parsed.sections &&
+      Array.isArray(parsed.sections) &&
+      parsed.sections.length >= 2 &&
+      parsed.sections.length <= 6
+    ) {
+      return parsed.sections;
+    }
+
+  } catch (err) {
+    console.warn('Structure detection failed, falling back');
+  }
+
+  return null;
 }
 
 
@@ -289,8 +359,9 @@ async function readPDF(file) {
     text += content.items.map(i => i.str).join(' ') + '\n\n';
   }
 
+  // 🔥 NO HARD FAIL (future OCR hook point)
   if (text.trim().length < 100) {
-    throw new Error('This PDF may be scanned or unreadable.');
+    console.warn('PDF likely scanned — OCR fallback needed');
   }
 
   return text;
