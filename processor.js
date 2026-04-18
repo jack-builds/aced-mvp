@@ -148,14 +148,15 @@ function splitIntoSmartChunks(text, maxSize = 3500) {
 async function generateChunkedPlan(text, onProgress) {
   const structure = await getStructure(text);
   const chunks = splitIntoSmartChunks(text);
+  const totalChunks = chunks.length;
 
   let allSections = [];
 
-  for (let i = 0; i < chunks.length; i++) {
-    onProgress(
-      40 + (i / chunks.length) * 40,
-      `Processing ${i + 1}/${chunks.length}...`
-    );
+ for (let i = 0; i < totalChunks; i++) {
+  onProgress(
+    40 + (i / totalChunks) * 40,
+    `Processing ${i + 1}/${totalChunks}...`
+  );
 
     try {
       let chunkText = chunks[i];
@@ -409,18 +410,34 @@ function mergeSections(sections) {
       map[key].items.push(...section.items);
     }
   }
-
-  return Object.values(map).map((s, i) => ({
-    id: `section_${i + 1}`,
-    title: s.title,
-    timeEstimate: String(s.timeEstimate || 15),
-    emoji: '📚',
-    items: [...new Set(s.items)]
-  }));
+return Object.values(map).map((s, i) => ({
+  id: `section_${i + 1}`,
+  title: s.title,
+  timeEstimate: String(s.timeEstimate || 15),
+  emoji: '📚',
+  items: dedupeItems(s.items || []) 
+}));
 }
 
 function normalizeTitle(title) {
   return title.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+}
+
+function dedupeItems(items) {
+  const seen = new Set();
+  const result = [];
+
+  for (let item of items) {
+    item = item.trim(); // 🔥 critical fix
+    const key = normalizeTitle(item);
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(item);
+    }
+  }
+
+  return result;
 }
 
 function sleep(ms) {
