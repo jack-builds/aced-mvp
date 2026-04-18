@@ -250,7 +250,7 @@ async function generateWithRetry(text, onProgress) {
 
 async function callGemini(studyGuideText, onProgress, retryCount = 0) {
   const MAX_RETRIES = 3;
-  const trimmed = studyGuideText;
+  const trimmed = studyGuideText.slice(0, 7000);
 
   onProgress(50, 'AI is reading your guide...');
 
