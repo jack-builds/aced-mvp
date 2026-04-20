@@ -1,137 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MVRLB366R9"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-MVRLB366R9');
-</script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-MVRLB366R9"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-MVRLB366R9');
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aced — Study With Clarity, Not Chaos</title>
+  <title>Aced — Engine Upgrade in Progress</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="shared.css">
   <link rel="stylesheet" href="index.css">
-<!-- Primary SEO -->
-<meta name="description" content="Upload your study guide and get a beautiful, interactive study plan in seconds. Free AI-powered study tool for students.">
-<meta name="keywords" content="study tool, AI study guide, study plan, interactive checklist, student productivity">
-
-<!-- Open Graph (makes links look good when shared on social) -->
-<meta property="og:title" content="Aced — Turn your study guide into a plan">
-<meta property="og:description" content="Upload your study guide and get a beautiful, interactive study plan in seconds.">
-<meta property="og:url" content="https://studyaced.com">
-<meta property="og:type" content="website">
-
-<!-- Twitter/X card -->
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Aced — Turn your study guide into a plan">
-<meta name="twitter:description" content="Upload your study guide and get a beautiful, interactive study plan in seconds.">
-<link rel="canonical" href="https://studyaced.com">
+  <style>
+    /* Custom styles for maintenance mode */
+    .upgrade-card {
+      background: #111;
+      border: 1px solid #333;
+      padding: 40px;
+      border-radius: 20px;
+      max-width: 500px;
+      margin: 40px auto;
+      text-align: center;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid #444;
+      border-radius: 100px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .date-highlight {
+      color: #fff;
+      font-weight: 600;
+      border-bottom: 1px dashed #555;
+    }
+    .hero h1 em {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- LOADING OVERLAY -->
-  <div class="loading-overlay" id="loading-overlay">
-    <div class="loading-title">Building your study plan...</div>
-    <div class="loading-msg" id="loading-msg">Reading your file...</div>
-    <div class="loading-bar-wrap">
-      <div class="loading-bar-fill" id="loading-bar"></div>
-    </div>
-    <div class="loading-pct" id="loading-pct">0%</div>
-  </div>
-
-  <!-- NAV -->
   <nav>
     <div class="nav-logo">Aced<span>.</span></div>
     <div class="nav-links">
-       <a href="plans.html" class="nav-link">My Plans</a>
-       <a href="https://tally.so/r/XxqjLe" target="_blank" class="nav-link">Feedback</a>
        <a href="https://tally.so/r/OD5jP8" target="_blank" class="nav-link nav-link-highlight">Stay Updated</a>
     </div>
   </nav>
 
-  <!-- HERO + UPLOAD -->
   <section class="hero">
     <div class="eyebrow">
       <div class="dot-pulse"></div>
-      AI-powered study plans
+      Maintenance in progress
     </div>
 
-    <h1>Study with <em>clarity.</em><br>Not chaos.</h1>
+    <h1>Building a better <em>engine.</em></h1>
 
-    <p class="subhead">Upload your study guide. Aced turns it into a beautiful, interactive plan in seconds.</p>
-
-    <div class="upload-wrap">
-
-      <div class="drop-zone" id="drop-zone">
-        <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" />
-        <span class="drop-icon">📄</span>
-        <div class="drop-title">Drop your study guide here</div>
-        <div class="drop-sub">PDF · Word (.docx) · Text (.txt) &nbsp;·&nbsp; Max 10MB</div>
-      </div>
-
-      <div class="file-selected" id="file-selected">
-        <span class="file-icon" id="file-icon">📄</span>
-        <div class="file-info">
-          <div class="file-name" id="file-name">—</div>
-          <div class="file-size" id="file-size">—</div>
-        </div>
-        <button class="file-remove" id="file-remove" title="Remove">✕</button>
-      </div>
-
-      <div class="error-msg" id="error-msg"></div>
-
-      <button class="generate-btn" id="generate-btn" disabled>
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-        </svg>
-        Generate My Study Plan
-      </button>
-
-      <p class="upload-note">Free · No account needed · Works in your browser</p>
-
+    <div class="upgrade-card">
+        <div class="status-badge">Engine Overhaul v2.0</div>
+        <p class="subhead" style="margin-bottom: 0; color: #ccc;">
+            We're currently upgrading Aced to better handle complex math problems and massive study guides.
+        </p>
+        <br>
+        <p style="color: #888; font-size: 0.95rem; line-height: 1.6;">
+            The current version was struggling with high-density files, so we're taking a quick pit stop to fix the AI logic. 
+            We'll be back online and more powerful than ever on <span class="date-highlight">May 17th</span>.
+        </p>
     </div>
+
+    <p class="upload-note">Built by a student, for students. Thanks for your patience.</p>
   </section>
 
-  <!-- HOW IT WORKS -->
-  <section class="features">
-    <div class="features-label">How it works</div>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-step">01 — UPLOAD</div>
-        <span class="feature-icon">📤</span>
-        <div class="feature-title">Drop your study guide</div>
-        <div class="feature-desc">PDF, Word doc, or plain text — whatever your teacher gave you.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-step">02 — AI READS IT</div>
-        <span class="feature-icon">🤖</span>
-        <div class="feature-title">AI organizes everything</div>
-        <div class="feature-desc">Aced breaks it into sections, topics, and time estimates automatically.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-step">03 — STUDY</div>
-        <span class="feature-icon">✅</span>
-        <div class="feature-title">Check off as you go</div>
-        <div class="feature-desc">Interactive checklist with a progress bar. Watch it fill up. Crush the exam.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
   <footer>
-    Built by a student, for students · <span>Aced</span> © 2026
-    <a href="https://tally.so/r/OD5jP8" target="_blank" class="footer-signup">📬 Get notified about updates</a>
+    Aced © 2026 · <a href="https://tally.so/r/OD5jP8" target="_blank" class="footer-signup">📬 Get notified when we're back</a>
   </footer>
 
-  <script src="processor.js"></script>
-  <script src="app.js"></script>
-  <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
-  <script async src="https://scripts.simpleanalyticscdn.com/auto-events.js"></script>
 </body>
 </html>
