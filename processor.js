@@ -135,10 +135,14 @@ async function processFile(file, onProgress) {
     let plan;
 
     if (text.length < 8000) {
-      onProgress(30, 'Generating study plan...');
+      onProgress(20, 'Analyzing your math problems...');
+      await sleep(800); 
+      onProgress(50, 'Formulating step-by-step answers...');
       const raw = await callGemini(text, FULL_PROMPT);
+      onProgress(90, 'Finalizing guide...');
       plan = await parseFullPlan(raw);
     } else {
+      // Keep your existing large file logic here:
       onProgress(30, 'Processing large file...');
       plan = await generateChunkedPlan(text, onProgress);
     }
