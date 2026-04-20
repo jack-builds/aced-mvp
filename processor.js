@@ -48,32 +48,38 @@ QUALITY RULES:
 - Avoid vague tasks like "understand" or "learn"
 
 TIME RULES:
-- timeEstimate must reflect realistic effort (5–20 minutes per section)
+- - timeEstimate should be roughly 2 minutes per item included.
 `;
 
 
 const CHUNK_PROMPT = `
-You are creating PART of a study guide.
+You are a Study Guide Extraction Engine. 
 
 Return ONLY valid JSON.
 
-Format:
 {
   "sections": [
     {
       "title": "string",
-      "timeEstimate": "number as string",
+      "timeEstimate": "number",
       "emoji": "emoji",
       "items": [
         {
-          "prompt": "specific study question or task",
-          "answer": "clear, concise answer",
-          "hint": "short memory trick (optional)"
+          "prompt": "question",
+          "answer": "concise, accurate answer",
+          "hint": "memory trick"
         }
       ]
     }
   ]
 }
+
+EXTRACTION RULES:
+1. MANDATORY: Every "prompt" MUST have a corresponding "answer". Never leave "answer" empty.
+2. EXHAUSTIVE: Extract every concept, formula, and fact. If the text has 20 facts, create 20 items.
+3. NO SUMMARIZATION: Do not group 5 topics into 1 item. Break them down.
+4. TECHNICAL DEPTH: For Math/Science, the "answer" must include the specific formula or steps.
+5. FORMAT: Use clean text. No special characters that break JSON.
 
 CRITICAL:
 - Output must be valid JSON
@@ -82,11 +88,11 @@ CRITICAL:
 - No extra text outside JSON
 
 QUALITY RULES:
-- Each item MUST include a correct answer
-- Study prompts must be specific and actionable (not generic)
-- Answers must be clear and easy to memorize
-- Keep answers short and useful
-- Include hints when helpful
+- CRITICAL: Do not summarize. Extract every possible study question from the text.
+- If the text contains 10 facts, create 10 items.
+- Ensure the "answer" field is highly accurate.
+- If the document is technical (Math/Science), include step-by-step logic in the "answer".
+- There is no limit on the number of sections or items per chunk.
 `;
 
 const STRUCTURE_PROMPT = `
@@ -157,7 +163,7 @@ async function processFile(file, onProgress) {
 
 // ─── CHUNKING ────────────────────────────────────────────────────────────────
 
-function splitIntoSmartChunks(text, maxSize = 3500) {
+function splitIntoSmartChunks(text, maxSize = 2000) {
   let parts = text.split(/\n\s*\n/);
 
   // fallback for messy PDFs
@@ -179,7 +185,7 @@ function splitIntoSmartChunks(text, maxSize = 3500) {
 
   if (current) chunks.push(current);
 
-  return chunks.slice(0, 6);
+  return chunks;
 }
 
 
@@ -198,9 +204,6 @@ for (let i = 0; i < totalChunks; i++) {
 
     try {
       let chunkText = chunks[i];
-
-      // 🔥 HARD LIMIT (CRITICAL FIX)
-      chunkText = chunkText.slice(0, 4000);
 
       // 🧠 structure hint
       if (structure) {
@@ -522,13 +525,20 @@ function dedupeItems(items) {
   const result = [];
 
   for (let item of items) {
-    if (!item || typeof item.prompt !== 'string') continue;
+    // 1. Safety check: handle strings OR objects
+    if (!item) continue;
+    
+    // 2. Identify the unique text to check for duplicates
+    // If it's the new object, use item.prompt. If it's an old string, use the string.
+    const textToCompare = typeof item === 'object' ? item.prompt : item;
+    
+    if (!textToCompare) continue;
 
-    const key = normalizeTitle(item.prompt);
+    const key = normalizeTitle(textToCompare);
 
     if (!seen.has(key)) {
       seen.add(key);
-      result.push(item);
+      result.push(item); // Push the whole object (prompt, answer, hint)
     }
   }
 
@@ -549,9 +559,8 @@ function validatePlan(plan) {
   return plan.sections.every(s =>
     typeof s.title === 'string' &&
     Array.isArray(s.items) &&
-    s.items.every(i =>
-      typeof i.prompt === 'string' &&
-      typeof i.answer === 'string'
+    s.items.every(i => 
+      i && typeof i === 'object' && typeof i.prompt === 'string'
     )
   );
 }
