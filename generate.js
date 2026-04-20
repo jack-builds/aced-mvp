@@ -196,9 +196,24 @@ function renderSection(section, idx) {
     </div>`;
 }
 
-function renderItem(sectionId, index, text) {
+function renderItem(sectionId, index, item) {
   const key  = `${sectionId}__${index}`;
   const done = state.checked[key] ? 'done' : '';
+
+  // 🛟 backward compatibility (old plans still work)
+  if (typeof item === 'string') {
+    return `
+      <div class="item-row ${done}" data-key="${key}">
+        <div class="item-checkbox">
+          <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <span class="item-text">${esc(item)}</span>
+      </div>`;
+  }
+
+  // ✅ NEW STRUCTURE (prompt + answer)
   return `
     <div class="item-row ${done}" data-key="${key}">
       <div class="item-checkbox">
@@ -206,7 +221,13 @@ function renderItem(sectionId, index, text) {
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
       </div>
-      <span class="item-text">${esc(text)}</span>
+
+      <div class="item-content">
+        <div class="item-prompt">${esc(item.prompt)}</div>
+        <div class="item-answer" style="display:none;">
+          ${esc(item.answer)}
+        </div>
+      </div>
     </div>`;
 }
 
