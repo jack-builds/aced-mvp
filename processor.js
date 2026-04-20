@@ -196,20 +196,17 @@ async function generateChunkedPlan(text, onProgress) {
 
   let allSections = [];
 
-for (let i = 0; i < totalChunks; i++) {
-  onProgress(
-    40 + (i / totalChunks) * 40,
-    `Processing ${i + 1}/${totalChunks}...`
-  );
+  for (let i = 0; i < totalChunks; i++) {
+    // 💡 Dynamic Message Update
+    const progress = 40 + (i / totalChunks) * 50; // Scales from 40% to 90%
+    onProgress(progress, getFriendlyMessage(i, totalChunks));
 
     try {
       let chunkText = chunks[i];
-
-      // 🧠 structure hint
+      
       if (structure) {
-        chunkText =
-          `Document sections: ${structure.join(', ')}\n\n` +
-          `Current content:\n${chunkText}`;
+        chunkText = `Document sections: ${structure.join(', ')}\n\n` +
+                    `Current content:\n${chunkText}`;
       }
 
       const raw = await callGemini(chunkText, CHUNK_PROMPT);
@@ -217,31 +214,21 @@ for (let i = 0; i < totalChunks; i++) {
 
       try {
         parsed = safeParse(raw);
-
       } catch (err) {
-        console.warn(`Retrying chunk ${i + 1} due to JSON error`);
-
-      try {
-        const retryRaw = await callGemini(chunkText, CHUNK_PROMPT);
-        parsed = safeParse(retryRaw);
-
-      } catch {
-        console.warn(`Repairing chunk ${i + 1}`);
-        parsed = await repairJSON(raw); // ✅ correct fallback
+        // ... (Keep your existing retry/repair logic here)
       }
-    }
 
-if (validatePlan(parsed)) {
-  allSections.push(...parsed.sections);
-} else {
-  console.warn(`Chunk ${i + 1} returned invalid structure`, parsed);
-}
-
+      if (validatePlan(parsed)) {
+        allSections.push(...parsed.sections);
+      }
     } catch (err) {
       console.warn(`Chunk ${i + 1} failed`, err);
     }
   }
 
+  // 💡 Final stretch message
+  onProgress(95, "Merging sections and removing duplicates...");
+  
   if (allSections.length === 0) {
     throw new Error('Failed to generate study plan from this file.');
   }
@@ -254,7 +241,6 @@ if (validatePlan(parsed)) {
     sections: mergeSections(allSections)
   };
 }
-
 
 // ─── GEMINI CALL ─────────────────────────────────────────────────────────────
 
@@ -547,6 +533,22 @@ function dedupeItems(items) {
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
+}
+
+function getFriendlyMessage(index, total) {
+  const messages = [
+    "Analyzing complex concepts...",
+    "Breaking down the math logic...",
+    "Extracting key formulas...",
+    "Drafting study questions...",
+    "Generating detailed answers...",
+    "Adding memory tricks and hints...",
+    "Organizing into sections...",
+    "Finalizing the structure..."
+  ];
+  // Cycle through messages based on the current chunk index
+  const msg = messages[index % messages.length];
+  return `${msg} (${index + 1}/${total})`;
 }
 
 
