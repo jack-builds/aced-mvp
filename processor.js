@@ -23,12 +23,11 @@ Return ONLY valid JSON:
   ]
 }
 
-Rules:
-- Each item MUST include the actual answer/content
-- Keep items short and actionable
-- No markdown
-- No explanation
-- Ensure valid JSON
+CRITICAL:
+- Output must be valid JSON
+- No trailing commas
+- No missing commas
+- No extra text outside JSON
 `;
 
 
@@ -50,16 +49,11 @@ Format:
   ]
 }
 
-Rules:
-- 1–3 sections ONLY
-- 4–8 items per section
-- Each item must include the actual answer/content
-- Keep items concise
-- ONLY use the provided text
-- DO NOT include title or totalTime
-- DO NOT repeat content unnecessarily
-- DO NOT cut off JSON
-- Ensure EVERY item in arrays is separated by commas
+CRITICAL:
+- Output must be valid JSON
+- No trailing commas
+- No missing commas
+- No extra text outside JSON
 `;
 
 const STRUCTURE_PROMPT = `
@@ -71,11 +65,11 @@ Return ONLY valid JSON:
   "sections": ["Section name 1", "Section name 2", "Section name 3"]
 }
 
-Rules:
-- 3–6 sections max
-- Use concise names
-- Based ONLY on the text
-- No explanation
+CRITICAL:
+- Output must be valid JSON
+- No trailing commas
+- No missing commas
+- No extra text outside JSON
 `;
 
 
@@ -100,7 +94,7 @@ async function processFile(file, onProgress) {
     if (text.length < 8000) {
       onProgress(30, 'Generating study plan...');
       const raw = await callGemini(text, FULL_PROMPT);
-      plan = parseFullPlan(raw);
+      plan = await parseFullPlan(raw);
     } else {
       onProgress(30, 'Processing large file...');
       plan = await generateChunkedPlan(text, onProgress);
@@ -153,7 +147,7 @@ async function generateChunkedPlan(text, onProgress) {
 
   let allSections = [];
 
- for (let i = 0; i < totalChunks; i++) {
+for (let i = 0; i < totalChunks; i++) {
   onProgress(
     40 + (i / totalChunks) * 40,
     `Processing ${i + 1}/${totalChunks}...`
@@ -180,9 +174,14 @@ async function generateChunkedPlan(text, onProgress) {
       } catch (err) {
         console.warn(`Retrying chunk ${i + 1} due to JSON error`);
 
-      const retryRaw = await callGemini(chunkText, CHUNK_PROMPT);
+      try {
+        const retryRaw = await callGemini(chunkText, CHUNK_PROMPT);
         parsed = safeParse(retryRaw);
+      } catch {
+        console.warn(`Repairing chunk ${i + 1}`);
+        parsed = await repairJSON(retryRaw);
       }
+    }
 
       if (
         parsed.sections &&
@@ -289,9 +288,14 @@ function safeParse(raw) {
     .replace(/```$/, '')
     .trim();
 
-  // 🔥 FIX: remove trailing commas (common AI bug)
+  // 🔥 Fix trailing commas
   text = text.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
 
+  // 🔥 Fix missing commas between strings in arrays
+  text = text.replace(/"\s*"\s*/g, '","');
+
+  text = text.replace(/""/g, '","');
+  
   try {
     return JSON.parse(text);
   } catch {
@@ -299,19 +303,44 @@ function safeParse(raw) {
     if (match) {
       let cleaned = match[0]
         .replace(/,\s*}/g, '}')
-        .replace(/,\s*]/g, ']');
+        .replace(/,\s*]/g, ']')
+        .replace(/"\s*"\s*/g, '","')
+        .replace(/""/g, '","');
 
       return JSON.parse(cleaned);
     }
+
     throw new Error('Invalid JSON');
+  }
+}
+
+
+async function repairJSON(brokenText) {
+  try {
+    const repairPrompt = `
+Fix this JSON. Return ONLY valid JSON.
+
+${brokenText}
+`;
+    const fixed = await callGemini('', repairPrompt);
+    return safeParse(fixed);
+  } catch {
+    console.warn('Repair failed');
+    return { sections: [] }; // safe fallback
   }
 }
 
 
 // ─── FULL PLAN PARSER ────────────────────────────────────────────────────────
 
-function parseFullPlan(raw) {
-  const parsed = safeParse(raw);
+async function parseFullPlan(raw) {
+  let parsed;
+
+  try {
+    parsed = safeParse(raw);
+  } catch {
+    parsed = await repairJSON(raw);
+  }
 
   if (
     !parsed.sections ||
