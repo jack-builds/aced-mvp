@@ -59,6 +59,7 @@ Rules:
 - DO NOT include title or totalTime
 - DO NOT repeat content unnecessarily
 - DO NOT cut off JSON
+- Ensure EVERY item in arrays is separated by commas
 `;
 
 const STRUCTURE_PROMPT = `
@@ -172,17 +173,26 @@ async function generateChunkedPlan(text, onProgress) {
       }
 
       const raw = await callGemini(chunkText, CHUNK_PROMPT);
-      const parsed = safeParse(raw);
+      let parsed;
 
-      // 🔥 VALIDATION FIX
+      try {
+        parsed = safeParse(raw);
+      } catch (err) {
+        console.warn(`Retrying chunk ${i + 1} due to JSON error`);
+
+      const retryRaw = await callGemini(chunkText, CHUNK_PROMPT);
+        parsed = safeParse(retryRaw);
+      }
+
       if (
         parsed.sections &&
         Array.isArray(parsed.sections) &&
-        parsed.sections.length > 0
+        parsed.sections.length > 0 &&
+        parsed.sections.every(s => Array.isArray(s.items))
       ) {
         allSections.push(...parsed.sections);
       } else {
-        console.warn(`Chunk ${i + 1} returned bad structure`);
+        console.warn(`Chunk ${i + 1} returned bad structure`, parsed);
       }
 
     } catch (err) {
@@ -279,11 +289,20 @@ function safeParse(raw) {
     .replace(/```$/, '')
     .trim();
 
+  // 🔥 FIX: remove trailing commas (common AI bug)
+  text = text.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+
   try {
     return JSON.parse(text);
   } catch {
     const match = text.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
+    if (match) {
+      let cleaned = match[0]
+        .replace(/,\s*}/g, '}')
+        .replace(/,\s*]/g, ']');
+
+      return JSON.parse(cleaned);
+    }
     throw new Error('Invalid JSON');
   }
 }
@@ -294,7 +313,11 @@ function safeParse(raw) {
 function parseFullPlan(raw) {
   const parsed = safeParse(raw);
 
-  if (!parsed.sections || !Array.isArray(parsed.sections)) {
+  if (
+    !parsed.sections ||
+    !Array.isArray(parsed.sections) ||
+    !parsed.sections.every(s => Array.isArray(s.items))
+  ) {
     throw new Error('Invalid plan format');
   }
 
@@ -396,15 +419,17 @@ function mergeSections(sections) {
   for (const section of sections) {
     const key = normalizeTitle(section.title);
 
-    if (!map[key]) {
-      map[key] = {
-        title: section.title,
-        timeEstimate: 0,
-        items: []
-      };
-    }
+  if (!map[key]) {
+    map[key] = {
+      title: section.title,
+      timeEstimate: 0,
+      items: [],
+      emoji: section.emoji || '📚' // ✅ preserve AI emoji
+    };
+  }
 
-    map[key].timeEstimate += parseInt(section.timeEstimate) || 0;
+   const time = parseInt(section.timeEstimate);
+   map[key].timeEstimate += isNaN(time) ? 15 : time;
 
     if (Array.isArray(section.items)) {
       map[key].items.push(...section.items);
@@ -414,12 +439,13 @@ return Object.values(map).map((s, i) => ({
   id: `section_${i + 1}`,
   title: s.title,
   timeEstimate: String(s.timeEstimate || 15),
-  emoji: '📚',
+  emoji: s.emoji || '📚', // ✅ use stored emoji
   items: dedupeItems(s.items || []) 
 }));
 }
 
 function normalizeTitle(title) {
+  if (!title || typeof title !== 'string') return '';
   return title.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
 }
 
@@ -427,15 +453,19 @@ function dedupeItems(items) {
   const seen = new Set();
   const result = [];
 
-  for (let item of items) {
-    item = item.trim(); // 🔥 critical fix
-    const key = normalizeTitle(item);
+for (let item of items) {
+  if (!item || typeof item !== 'string') continue;
 
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(item);
-    }
+  item = item.trim();
+  if (!item) continue;
+
+  const key = normalizeTitle(item);
+
+  if (!seen.has(key)) {
+    seen.add(key);
+    result.push(item);
   }
+}
 
   return result;
 }
