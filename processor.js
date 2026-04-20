@@ -100,7 +100,13 @@ async function processFile(file, onProgress) {
       plan = await generateChunkedPlan(text, onProgress);
     }
 
-    localStorage.setItem('acedStudyPlan', JSON.stringify(plan));
+    const serialized = JSON.stringify(plan);
+
+    if (serialized.length > 4_500_000) {
+      console.warn('Plan too large for localStorage');
+    } else {
+      localStorage.setItem('acedStudyPlan', serialized);
+    }
 
     onProgress(100, 'Done! Opening your plan...');
     await sleep(500);
@@ -171,15 +177,17 @@ for (let i = 0; i < totalChunks; i++) {
 
       try {
         parsed = safeParse(raw);
+
       } catch (err) {
         console.warn(`Retrying chunk ${i + 1} due to JSON error`);
 
       try {
         const retryRaw = await callGemini(chunkText, CHUNK_PROMPT);
         parsed = safeParse(retryRaw);
+
       } catch {
         console.warn(`Repairing chunk ${i + 1}`);
-        parsed = await repairJSON(retryRaw);
+        parsed = await repairJSON(raw); // ✅ correct fallback
       }
     }
 
@@ -295,6 +303,9 @@ function safeParse(raw) {
   text = text.replace(/"\s*"\s*/g, '","');
 
   text = text.replace(/""/g, '","');
+
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) text = match[0];
   
   try {
     return JSON.parse(text);
@@ -322,7 +333,7 @@ Fix this JSON. Return ONLY valid JSON.
 
 ${brokenText}
 `;
-    const fixed = await callGemini('', repairPrompt);
+    const fixed = await callGemini(brokenText, repairPrompt);
     return safeParse(fixed);
   } catch {
     console.warn('Repair failed');
