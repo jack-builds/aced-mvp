@@ -571,4 +571,4 @@ function validatePlan(plan) {
   );
 }
 
-// forced update
+// forced site shutdown
