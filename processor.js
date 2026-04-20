@@ -5,7 +5,6 @@
 
 // ─── PROMPTS ─────────────────────────────────────────────────────────────────
 
-// Small file (full generation)
 const FULL_PROMPT = `You are an expert study guide creator.
 
 Return ONLY valid JSON:
@@ -18,7 +17,13 @@ Return ONLY valid JSON:
       "title": "Section name",
       "timeEstimate": "number",
       "emoji": "emoji",
-      "items": ["study item"]
+      "items": [
+        {
+          "prompt": "specific study question or task",
+          "answer": "clear, concise answer",
+          "hint": "short memory trick (optional)"
+        }
+      ]
     }
   ]
 }
@@ -28,10 +33,25 @@ CRITICAL:
 - No trailing commas
 - No missing commas
 - No extra text outside JSON
+
+QUALITY RULES:
+- Each item MUST include a correct answer
+- Study prompts must be specific and actionable (not generic like "describe" or "explain")
+- Answers must be clear, simple, and easy to memorize
+- Keep answers short (1–3 sentences or concise bullet-style)
+- Include helpful hints or memory tricks when possible
+- Prefer tasks like:
+  - "List..."
+  - "Compare..."
+  - "Draw/trace..."
+  - "Explain with an example..."
+- Avoid vague tasks like "understand" or "learn"
+
+TIME RULES:
+- timeEstimate must reflect realistic effort (5–20 minutes per section)
 `;
 
 
-// 🔥 CHUNK PROMPT
 const CHUNK_PROMPT = `
 You are creating PART of a study guide.
 
@@ -44,7 +64,13 @@ Format:
       "title": "string",
       "timeEstimate": "number as string",
       "emoji": "emoji",
-      "items": ["string"]
+      "items": [
+        {
+          "prompt": "specific study question or task",
+          "answer": "clear, concise answer",
+          "hint": "short memory trick (optional)"
+        }
+      ]
     }
   ]
 }
@@ -54,6 +80,13 @@ CRITICAL:
 - No trailing commas
 - No missing commas
 - No extra text outside JSON
+
+QUALITY RULES:
+- Each item MUST include a correct answer
+- Study prompts must be specific and actionable (not generic)
+- Answers must be clear and easy to memorize
+- Keep answers short and useful
+- Include hints when helpful
 `;
 
 const STRUCTURE_PROMPT = `
@@ -70,8 +103,12 @@ CRITICAL:
 - No trailing commas
 - No missing commas
 - No extra text outside JSON
-`;
 
+RULES:
+- Section names should be concise and meaningful
+- Avoid generic names like "Introduction" unless clearly present
+- Return between 2–6 sections
+`;
 
 // ─── MAIN ENTRY ──────────────────────────────────────────────────────────────
 
@@ -191,16 +228,11 @@ for (let i = 0; i < totalChunks; i++) {
       }
     }
 
-      if (
-        parsed.sections &&
-        Array.isArray(parsed.sections) &&
-        parsed.sections.length > 0 &&
-        parsed.sections.every(s => Array.isArray(s.items))
-      ) {
-        allSections.push(...parsed.sections);
-      } else {
-        console.warn(`Chunk ${i + 1} returned bad structure`, parsed);
-      }
+if (validatePlan(parsed)) {
+  allSections.push(...parsed.sections);
+} else {
+  console.warn(`Chunk ${i + 1} returned invalid structure`, parsed);
+}
 
     } catch (err) {
       console.warn(`Chunk ${i + 1} failed`, err);
@@ -353,13 +385,9 @@ async function parseFullPlan(raw) {
     parsed = await repairJSON(raw);
   }
 
-  if (
-    !parsed.sections ||
-    !Array.isArray(parsed.sections) ||
-    !parsed.sections.every(s => Array.isArray(s.items))
-  ) {
-    throw new Error('Invalid plan format');
-  }
+if (!validatePlan(parsed)) {
+  throw new Error('Invalid plan structure');
+}
 
   return {
     title: parsed.title || "Study Plan",
@@ -493,23 +521,37 @@ function dedupeItems(items) {
   const seen = new Set();
   const result = [];
 
-for (let item of items) {
-  if (!item || typeof item !== 'string') continue;
+  for (let item of items) {
+    if (!item || typeof item.prompt !== 'string') continue;
 
-  item = item.trim();
-  if (!item) continue;
+    const key = normalizeTitle(item.prompt);
 
-  const key = normalizeTitle(item);
-
-  if (!seen.has(key)) {
-    seen.add(key);
-    result.push(item);
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(item);
+    }
   }
-}
 
   return result;
 }
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
+}
+
+
+// ─── VALIDATION ─────────────────────────────────────────────────────────────
+
+function validatePlan(plan) {
+  if (!plan || typeof plan !== 'object') return false;
+  if (!Array.isArray(plan.sections)) return false;
+
+  return plan.sections.every(s =>
+    typeof s.title === 'string' &&
+    Array.isArray(s.items) &&
+    s.items.every(i =>
+      typeof i.prompt === 'string' &&
+      typeof i.answer === 'string'
+    )
+  );
 }
