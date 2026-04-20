@@ -200,32 +200,23 @@ function renderItem(sectionId, index, item) {
   const key  = `${sectionId}__${index}`;
   const done = state.checked[key] ? 'done' : '';
 
-  // 🛟 backward compatibility (old plans still work)
   if (typeof item === 'string') {
-    return `
-      <div class="item-row ${done}" data-key="${key}">
-        <div class="item-checkbox">
-          <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-          </svg>
-        </div>
-        <span class="item-text">${esc(item)}</span>
-      </div>`;
+    // ... keep your existing string logic ...
   }
 
-  // ✅ NEW STRUCTURE (prompt + answer)
   return `
     <div class="item-row ${done}" data-key="${key}">
-      <div class="item-checkbox">
+      <div class="item-checkbox" onclick="event.stopPropagation(); toggleItem('${key}', currentPlan)">
         <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
         </svg>
       </div>
 
-      <div class="item-content">
+      <div class="item-content" onclick="toggleAnswer(this)">
         <div class="item-prompt">${esc(item.prompt)}</div>
-        <div class="item-answer" style="display:none;">
+        <div class="item-answer" style="display:none; margin-top: 8px; color: #555; font-size: 0.95em; border-left: 2px solid #c8a96e; padding-left: 10px;">
           ${esc(item.answer)}
+          ${item.hint ? `<br><small style="font-style: italic; color: #888;">💡 Hint: ${esc(item.hint)}</small>` : ''}
         </div>
       </div>
     </div>`;
@@ -362,4 +353,13 @@ function launchConfetti() {
     else ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
   draw();
+}
+
+function toggleAnswer(contentEl) {
+  const answer = contentEl.querySelector('.item-answer');
+  if (answer) {
+    const isHidden = answer.style.display === 'none';
+    answer.style.display = isHidden ? 'block' : 'none';
+    contentEl.parentElement.classList.toggle('expanded', isHidden);
+  }
 }
