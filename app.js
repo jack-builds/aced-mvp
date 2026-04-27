@@ -41,13 +41,17 @@ studyInput.addEventListener('input', () => {
 
   if (isTooLong) {
     showError(`Too long! Please keep it under ${limit} characters.`);
+    generateBtn.disabled = true; // ADD THIS LINE
   } else if (isTooShort && charCount > 0) {
-    hideError(); 
+    hideError();
+    generateBtn.disabled = true; // Ensure it stays disabled if too short
+  } else if (charCount === 0) {
+    generateBtn.disabled = true;
   } else {
     hideError();
+    generateBtn.disabled = false; // Only enable if it's "just right"
   }
 
-  generateBtn.disabled = isTooShort || isTooLong || isProcessing;
 });
 
 // ── Main Action ────────────────────────────────────────────────────────────
