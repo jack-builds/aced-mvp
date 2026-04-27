@@ -16,15 +16,21 @@ const WORD_LIMIT = 6000;
 
 studyInput.addEventListener('input', () => {
   const words = studyInput.value.trim().split(/\s+/).filter(Boolean);
+  const isTooShort = studyInput.value.trim().length < 50;
+  const isTooLong  = words.length > WORD_LIMIT;
 
-  if (words.length > WORD_LIMIT) {
+  if (isTooLong) {
     errorMsgEl.textContent = `Too long (${words.length} words). Max is ${WORD_LIMIT}.`;
     errorMsgEl.classList.add('show');
-    generateBtn.disabled = true;
+  } else if (isTooShort) {
+    errorMsgEl.textContent = `Add more content (min ~50 chars).`;
+    errorMsgEl.classList.add('show');
   } else {
     errorMsgEl.classList.remove('show');
-    generateBtn.disabled = studyInput.value.trim().length < 50;
   }
+
+  // 🔒 THIS is the important part
+  generateBtn.disabled = isTooShort || isTooLong || isProcessing;
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -56,7 +62,7 @@ function setProgress(pct, msg) {
 // ── Main Action ────────────────────────────────────────────────────────────
 
 generateBtn.addEventListener('click', async () => {
-  if (isProcessing) return;
+  if (generateBtn.disabled || isProcessing) return;
   
   const text = studyInput.value;
 
@@ -87,6 +93,12 @@ generateBtn.addEventListener('click', async () => {
   } finally {
     loadingOverlay.classList.remove('show');
     isProcessing = false;
-    generateBtn.disabled = false;
+
+    // Recalculate validity instead of blindly enabling
+    const words = studyInput.value.trim().split(/\s+/).filter(Boolean);
+    const isTooShort = studyInput.value.trim().length < 50;
+    const isTooLong  = words.length > WORD_LIMIT;
+
+    generateBtn.disabled = isTooShort || isTooLong;
   }
 });
