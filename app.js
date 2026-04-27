@@ -1,8 +1,8 @@
 // ─── Aced — app.js (TEXT INPUT VERSION) ─────────────────────────────────────
 
-const input        = document.getElementById('study-input');
-const generateBtn  = document.getElementById('generate-btn');
-const errorMsgEl   = document.getElementById('error-msg');
+const studyInput    = document.getElementById('study-input');
+const generateBtn   = document.getElementById('generate-btn');
+const errorMsgEl    = document.getElementById('error-msg');
 
 const loadingOverlay = document.getElementById('loading-overlay');
 const loadingMsgEl   = document.getElementById('loading-msg');
@@ -10,6 +10,22 @@ const loadingBarEl   = document.getElementById('loading-bar');
 const loadingPctEl   = document.getElementById('loading-pct');
 
 let isProcessing = false;
+
+const WORD_LIMIT = 6000;
+
+
+studyInput.addEventListener('input', () => {
+  const words = studyInput.value.trim().split(/\s+/).filter(Boolean);
+
+  if (words.length > WORD_LIMIT) {
+    errorMsgEl.textContent = `Too long (${words.length} words). Max is ${WORD_LIMIT}.`;
+    errorMsgEl.classList.add('show');
+    generateBtn.disabled = true;
+  } else {
+    errorMsgEl.classList.remove('show');
+    generateBtn.disabled = studyInput.value.trim().length < 50;
+  }
+});
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -41,45 +57,36 @@ function setProgress(pct, msg) {
 
 generateBtn.addEventListener('click', async () => {
   if (isProcessing) return;
+  
+  const text = studyInput.value;
 
-  const text = input.value.trim();
-
-  hideError();
-
-  // 🔒 Simple limits (VERY IMPORTANT)
-  if (!text) {
-    showError('Paste your study guide first.');
+  if (!text || text.trim().length < 50) {
+    errorMsgEl.textContent = "Paste more of your study guide.";
+    errorMsgEl.classList.add('show');
     return;
   }
 
-  if (text.length < 50) {
-    showError('Add a bit more content to generate a plan.');
-    return;
-  }
-
-  if (text.length > 8000) {
-    showError('Keep it under ~2–3 pages for now.');
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length > WORD_LIMIT) {
+    errorMsgEl.textContent = `Too long. Max is ${WORD_LIMIT} words.`;
+    errorMsgEl.classList.add('show');
     return;
   }
 
   isProcessing = true;
   generateBtn.disabled = true;
-  showLoading();
+  errorMsgEl.classList.remove('show');
+
+  loadingOverlay.classList.add('show');
 
   try {
-    setProgress(20, 'Analyzing your notes...');
-    await new Promise(r => setTimeout(r, 400));
-
-    setProgress(60, 'Generating study plan...');
-    await processText(text); // 🔥 THIS is your new pipeline
-
-    setProgress(100, 'Done!');
-
+    await processText(text);
   } catch (err) {
-    hideLoading();
-    generateBtn.disabled = false;
+    errorMsgEl.textContent = "Something went wrong.";
+    errorMsgEl.classList.add('show');
+  } finally {
+    loadingOverlay.classList.remove('show');
     isProcessing = false;
-
-    showError(err.message || 'Something went wrong. Try again.');
+    generateBtn.disabled = false;
   }
 });
