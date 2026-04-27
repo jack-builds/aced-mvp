@@ -1,6 +1,5 @@
-// ─── Aced — processor.js (ULTRA MINIMAL) ─────────────────────────────
+// ─── Aced — processor.js (UPDATED) ─────────────────────────────
 
-// Call this from your UI
 async function processText(userText) {
   try {
     if (!userText || userText.trim().length < 50) {
@@ -8,17 +7,24 @@ async function processText(userText) {
       return;
     }
 
-    // 🔒 Limit size (prevents AI breaking)
+    // 1. UPDATE START
+    if (typeof setProgress === 'function') setProgress(15, "Reading your guide...");
+
     let text = userText.trim().slice(0, 6000);
 
-    // 🔒 Wrap content (prevents prompt injection)
     const wrapped = `
 STUDY GUIDE CONTENT START
 ${text}
 STUDY GUIDE CONTENT END
 `;
 
+    // 2. UPDATE BEFORE API CALL
+    if (typeof setProgress === 'function') setProgress(35, "AI is organizing topics...");
+
     const raw = await callGemini(wrapped, FULL_PROMPT);
+
+    // 3. UPDATE AFTER API CALL
+    if (typeof setProgress === 'function') setProgress(75, "Formatting your plan...");
 
     const parsed = parseAI(raw);
 
@@ -26,7 +32,6 @@ STUDY GUIDE CONTENT END
       throw new Error("Invalid study plan format.");
     }
 
-    // Normalize structure (match your generate.js expectations)
     const plan = {
       title: parsed.title || "Study Plan",
       totalTime: parsed.totalTime || "60",
@@ -38,6 +43,9 @@ STUDY GUIDE CONTENT END
         items: Array.isArray(s.items) ? s.items : []
       }))
     };
+
+    // 4. FINAL STEPS
+    if (typeof setProgress === 'function') setProgress(95, "Saving to library...");
 
     localStorage.setItem("acedStudyPlan", JSON.stringify(plan));
 
