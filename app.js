@@ -41,7 +41,6 @@ studyInput.addEventListener('input', () => {
 
 // ── Main Action ────────────────────────────────────────────────────────────
 
-// Added 'e' here in the parentheses!
 generateBtn.addEventListener('click', async (e) => {
   if (e) e.preventDefault(); 
   
@@ -49,7 +48,6 @@ generateBtn.addEventListener('click', async (e) => {
   
   const text = studyInput.value;
 
-  // Final length check
   if (!text || text.trim().length < 50) {
     showError("Paste more of your study guide.");
     return;
@@ -58,19 +56,40 @@ generateBtn.addEventListener('click', async (e) => {
   isProcessing = true;
   generateBtn.disabled = true;
   hideError();
-
   showLoading();
 
+  // ─── START PROGRESS SIMULATION ───
+  let currentPct = 0;
+  const progressInterval = setInterval(() => {
+    if (currentPct < 90) {
+      // Moves faster at first, then slows down as it nears 90
+      const increment = Math.random() * 12; 
+      currentPct += increment;
+      if (currentPct > 90) currentPct = 90;
+      
+      // Update messages based on percentage
+      let msg = "Analyzing your guide...";
+      if (currentPct > 30) msg = "Organizing topics...";
+      if (currentPct > 60) msg = "Generating interactive checklist...";
+      
+      setProgress(Math.floor(currentPct), msg);
+    }
+  }, 800); // Updates every 0.8 seconds
+  // ────────────────────────────────
+
   try {
-    // This calls the function in processor.js
     await processText(text); 
+    
+    // Success! Finish the bar
+    clearInterval(progressInterval);
+    setProgress(100, "Done! Redirecting...");
   } catch (err) {
+    clearInterval(progressInterval);
     showError("Something went wrong.");
     isProcessing = false;
     generateBtn.disabled = false;
     hideLoading();
   }
-  // Note: We don't hideLoading in 'finally' if processText redirects the page
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
