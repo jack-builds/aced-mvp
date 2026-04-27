@@ -212,13 +212,13 @@ function renderItem(sectionId, index, item) {
         </svg>
       </div>
 
-      <div class="item-content" onclick="toggleAnswer(this)">
-        <div class="item-prompt">${esc(item.prompt)}</div>
-        <div class="item-answer" style="display:none; margin-top: 8px; color: #555; font-size: 0.95em; border-left: 2px solid #c8a96e; padding-left: 10px;">
-          ${esc(item.answer)}
-          ${item.hint ? `<br><small style="font-style: italic; color: #888;">💡 Hint: ${esc(item.hint)}</small>` : ''}
-        </div>
+    <div class="item-content">
+      <div class="item-prompt">
+        ${esc(item.prompt)}
+        <span class="item-answer-inline"> — ${esc(item.answer)}</span>
       </div>
+      ${item.hint ? `<div class="item-hint">💡 ${esc(item.hint)}</div>` : ''}
+    </div>
     </div>`;
 }
 
