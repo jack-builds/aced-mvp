@@ -1,5 +1,6 @@
 // ─── Aced — app.js (TEXT INPUT VERSION) ─────────────────────────────────────
 
+// 1. DEFINE VARIABLES FIRST
 const studyInput    = document.getElementById('study-input');
 const generateBtn   = document.getElementById('generate-btn');
 const errorMsgEl    = document.getElementById('error-msg');
@@ -10,9 +11,16 @@ const loadingBarEl   = document.getElementById('loading-bar');
 const loadingPctEl   = document.getElementById('loading-pct');
 
 let isProcessing = false;
-
 const WORD_LIMIT = 6000;
 
+// 2. NOW DO THE RESET
+window.onload = () => {
+  isProcessing = false;
+  if (generateBtn) generateBtn.disabled = true; // Start disabled until they type
+  if (studyInput) studyInput.value = '';        // Clears the "ghost spaces"
+};
+
+// ── Event Listeners ────────────────────────────────────────────────────────
 
 studyInput.addEventListener('input', () => {
   const words = studyInput.value.trim().split(/\s+/).filter(Boolean);
@@ -20,17 +28,49 @@ studyInput.addEventListener('input', () => {
   const isTooLong  = words.length > WORD_LIMIT;
 
   if (isTooLong) {
-    errorMsgEl.textContent = `Too long (${words.length} words). Max is ${WORD_LIMIT}.`;
-    errorMsgEl.classList.add('show');
+    showError(`Too long (${words.length} words). Max is ${WORD_LIMIT}.`);
   } else if (isTooShort) {
-    errorMsgEl.textContent = `Add more content (min ~50 chars).`;
-    errorMsgEl.classList.add('show');
+    // We don't necessarily want to show an error while they are still typing
+    hideError(); 
   } else {
-    errorMsgEl.classList.remove('show');
+    hideError();
   }
 
-  // 🔒 THIS is the important part
   generateBtn.disabled = isTooShort || isTooLong || isProcessing;
+});
+
+// ── Main Action ────────────────────────────────────────────────────────────
+
+// Added 'e' here in the parentheses!
+generateBtn.addEventListener('click', async (e) => {
+  if (e) e.preventDefault(); 
+  
+  if (generateBtn.disabled || isProcessing) return;
+  
+  const text = studyInput.value;
+
+  // Final length check
+  if (!text || text.trim().length < 50) {
+    showError("Paste more of your study guide.");
+    return;
+  }
+
+  isProcessing = true;
+  generateBtn.disabled = true;
+  hideError();
+
+  showLoading();
+
+  try {
+    // This calls the function in processor.js
+    await processText(text); 
+  } catch (err) {
+    showError("Something went wrong.");
+    isProcessing = false;
+    generateBtn.disabled = false;
+    hideLoading();
+  }
+  // Note: We don't hideLoading in 'finally' if processText redirects the page
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -58,48 +98,3 @@ function setProgress(pct, msg) {
   loadingPctEl.textContent = pct + '%';
   if (msg) loadingMsgEl.textContent = msg;
 }
-
-// ── Main Action ────────────────────────────────────────────────────────────
-
-generateBtn.addEventListener('click', async () => {
-  e.preventDefault();
-  if (generateBtn.disabled || isProcessing) return;
-  
-  const text = studyInput.value;
-
-  if (!text || text.trim().length < 50) {
-    errorMsgEl.textContent = "Paste more of your study guide.";
-    errorMsgEl.classList.add('show');
-    return;
-  }
-
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length > WORD_LIMIT) {
-    errorMsgEl.textContent = `Too long. Max is ${WORD_LIMIT} words.`;
-    errorMsgEl.classList.add('show');
-    return;
-  }
-
-  isProcessing = true;
-  generateBtn.disabled = true;
-  errorMsgEl.classList.remove('show');
-
-  loadingOverlay.classList.add('show');
-
-  try {
-    await processText(text);
-  } catch (err) {
-    errorMsgEl.textContent = "Something went wrong.";
-    errorMsgEl.classList.add('show');
-  } finally {
-    loadingOverlay.classList.remove('show');
-    isProcessing = false;
-
-    // Recalculate validity instead of blindly enabling
-    const words = studyInput.value.trim().split(/\s+/).filter(Boolean);
-    const isTooShort = studyInput.value.trim().length < 50;
-    const isTooLong  = words.length > WORD_LIMIT;
-
-    generateBtn.disabled = isTooShort || isTooLong;
-  }
-});
