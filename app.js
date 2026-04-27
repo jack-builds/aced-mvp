@@ -1,64 +1,35 @@
-// ─── Aced — app.js ───────────────────────────────────────────────────────────
-// Handles all UI logic for the upload page (index.html)
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Aced — app.js (TEXT INPUT VERSION) ─────────────────────────────────────
 
-const dropZone       = document.getElementById('drop-zone');
-const fileInput      = document.getElementById('file-input');
-const fileSelectedEl = document.getElementById('file-selected');
-const fileIconEl     = document.getElementById('file-icon');
-const fileNameEl     = document.getElementById('file-name');
-const fileSizeEl     = document.getElementById('file-size');
-const fileRemoveBtn  = document.getElementById('file-remove');
-const generateBtn    = document.getElementById('generate-btn');
-const errorMsgEl     = document.getElementById('error-msg');
+const input        = document.getElementById('study-input');
+const generateBtn  = document.getElementById('generate-btn');
+const errorMsgEl   = document.getElementById('error-msg');
+
 const loadingOverlay = document.getElementById('loading-overlay');
 const loadingMsgEl   = document.getElementById('loading-msg');
 const loadingBarEl   = document.getElementById('loading-bar');
 const loadingPctEl   = document.getElementById('loading-pct');
 
-const MAX_SIZE = 10 * 1024 * 1024;
-const ALLOWED  = ['pdf', 'doc', 'docx', 'txt'];
-let selectedFile = null;
 let isProcessing = false;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-function getIcon(ext) {
-  return { pdf: '📕', docx: '📘', doc: '📘', txt: '📝' }[ext] || '📄';
+function showError(msg) {
+  errorMsgEl.textContent = msg;
+  errorMsgEl.classList.add('show');
 }
 
-function formatSize(b) {
-  if (b < 1024) return b + ' B';
-  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
-  return (b / (1024 * 1024)).toFixed(1) + ' MB';
+function hideError() {
+  errorMsgEl.classList.remove('show');
 }
 
-function setFile(file) {
-  const ext = file.name.split('.').pop().toLowerCase();
-  if (!ALLOWED.includes(ext)) { showError(`"${file.name}" isn't supported. Use PDF, Word, or .txt.`); return; }
-  if (file.size > MAX_SIZE)   { showError(`File is ${formatSize(file.size)} — max is 10MB.`); return; }
-  selectedFile = file;
-  hideError();
-  fileIconEl.textContent = getIcon(ext);
-  fileNameEl.textContent = file.name;
-  fileSizeEl.textContent = formatSize(file.size);
-  fileSelectedEl.classList.add('show');
-  generateBtn.disabled = false;
+function showLoading() {
+  loadingOverlay.classList.add('show');
+  setProgress(0, 'Getting started...');
 }
 
-function clearFile() {
-  selectedFile = null;
-  fileInput.value = '';
-  fileSelectedEl.classList.remove('show');
-  generateBtn.disabled = true;
-  hideError();
+function hideLoading() {
+  loadingOverlay.classList.remove('show');
 }
-
-function showError(msg) { errorMsgEl.textContent = msg; errorMsgEl.classList.add('show'); }
-function hideError()    { errorMsgEl.classList.remove('show'); }
-
-function showLoading() { loadingOverlay.classList.add('show'); setProgress(0, 'Getting started...'); }
-function hideLoading() { loadingOverlay.classList.remove('show'); }
 
 function setProgress(pct, msg) {
   loadingBarEl.style.width = pct + '%';
@@ -66,34 +37,49 @@ function setProgress(pct, msg) {
   if (msg) loadingMsgEl.textContent = msg;
 }
 
-// ── Events ───────────────────────────────────────────────────────────────────
-
-fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
-
-dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-});
-
-fileRemoveBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
+// ── Main Action ────────────────────────────────────────────────────────────
 
 generateBtn.addEventListener('click', async () => {
-  if (!selectedFile || isProcessing) return;
+  if (isProcessing) return;
+
+  const text = input.value.trim();
+
+  hideError();
+
+  // 🔒 Simple limits (VERY IMPORTANT)
+  if (!text) {
+    showError('Paste your study guide first.');
+    return;
+  }
+
+  if (text.length < 50) {
+    showError('Add a bit more content to generate a plan.');
+    return;
+  }
+
+  if (text.length > 8000) {
+    showError('Keep it under ~2–3 pages for now.');
+    return;
+  }
 
   isProcessing = true;
   generateBtn.disabled = true;
-  hideError();
   showLoading();
 
   try {
-    await processFile(selectedFile, (pct, msg) => setProgress(pct, msg));
+    setProgress(20, 'Analyzing your notes...');
+    await new Promise(r => setTimeout(r, 400));
+
+    setProgress(60, 'Generating study plan...');
+    await processText(text); // 🔥 THIS is your new pipeline
+
+    setProgress(100, 'Done!');
+
   } catch (err) {
     hideLoading();
     generateBtn.disabled = false;
     isProcessing = false;
-    showError(err.message || 'Something went wrong. Please try again.');
+
+    showError(err.message || 'Something went wrong. Try again.');
   }
 });
