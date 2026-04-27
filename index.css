@@ -328,3 +328,26 @@ footer span { color: var(--accent); }
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
+
+
+.text-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.char-counter {
+  text-align: right;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 5px;
+  transition: color 0.2s;
+}
+
+.char-counter.limit-near {
+  color: var(--accent);
+}
+
+.char-counter.limit-reached {
+  color: var(--red);
+}
