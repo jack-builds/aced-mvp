@@ -53,7 +53,7 @@ STUDY GUIDE CONTENT END
 // ─── AI CALL ─────────────────────────────────────────────────────────
 
 async function callGemini(text, prompt) {
-  const res = await fetch('/.netlify/functions/generate', {
+  const res = await fetch('/api/generate', { {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
