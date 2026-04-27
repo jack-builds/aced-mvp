@@ -62,6 +62,7 @@ function setProgress(pct, msg) {
 // ── Main Action ────────────────────────────────────────────────────────────
 
 generateBtn.addEventListener('click', async () => {
+  e.preventDefault();
   if (generateBtn.disabled || isProcessing) return;
   
   const text = studyInput.value;
