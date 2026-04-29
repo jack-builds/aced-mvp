@@ -31,7 +31,7 @@ ${studyGuideText}`,
         ],
         generationConfig: {
           temperature: 0.3,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 10000,
         },
       }),
     });
