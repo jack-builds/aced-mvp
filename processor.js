@@ -166,11 +166,11 @@ Return ONLY valid JSON in this format:
 
 {
   "title": "Short title",
-  "totalTime": number,
+  "totalTime": "number",
   "sections": [
     {
       "title": "Section name",
-      "timeEstimate": number,
+      "timeEstimate": "number",
       "emoji": "emoji",
       "items": [
         {
