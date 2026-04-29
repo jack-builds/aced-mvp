@@ -166,11 +166,11 @@ Return ONLY valid JSON in this format:
 
 {
   "title": "Short title",
-  "totalTime": "number",
+  "totalTime": number,
   "sections": [
     {
       "title": "Section name",
-      "timeEstimate": "number",
+      "timeEstimate": number,
       "emoji": "emoji",
       "items": [
         {
@@ -183,10 +183,22 @@ Return ONLY valid JSON in this format:
   ]
 }
 
+IMPORTANT:
+- You MUST identify ALL major topics in the study guide
+- However, you CANNOT include everything in detail
+- You must intelligently COMPRESS and MERGE related topics
+
+LIMITS (STRICT):
+- Maximum 6 sections
+- Maximum 6 items per section
+- Each answer must be ONE SHORT SENTENCE (max 12–15 words)
+
 RULES:
-- Output must be valid JSON
-- No extra text outside JSON
-- Each item must include a prompt and answer
-- Keep answers short and clear
-- Break content into multiple sections
+- Combine similar topics into one item when needed
+- Prioritize the most important concepts
+- Do NOT exceed limits under any circumstances
+- Do NOT output partial JSON
+
+GOAL:
+Create a COMPLETE but COMPRESSED study plan that fits within the limits.
 `;
