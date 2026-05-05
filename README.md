@@ -41,7 +41,7 @@ If you would like to run a local instance of Aced or host it yourself, follow th
 ### 2. Installation
 ```bash
 # Clone the repository
-git clone [https://github.com/jack-builds/aced-mvp.git](https://github.com/jack-builds/aced-mvp.git)
+git clone https://github.com/jack-builds/aced-mvp.git
 
 # Navigate into the directory
 cd aced-mvp
