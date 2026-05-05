@@ -9,7 +9,7 @@
 ---
 
 ## 📢 Project Status Notice
-> **Note from the Founder:** As of May 2026, Aced is no longer being actively maintained. Due to the high costs of AI API credits and personal time constraints, I have decided to transition this project to Open Source. I hope the code serves as a helpful resource for other developers exploring AI integration.
+> **Note from the Founder:** As of May 2026, Aced is no longer being actively maintained. Due to the high costs of AI API credits and personal time constraints, I have decided to transition this project to Open Source. I hope the code serves as a helpful resource for other developers exploring AI integration. 
 
 ---
 
