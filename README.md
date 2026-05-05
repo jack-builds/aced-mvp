@@ -49,19 +49,21 @@ cd aced-mvp
 # Install dependencies
 npm install
 
-3. Environment Configuration
-Create a file named .env in the root directory of the project. Add your API key as follows:
-
-Plaintext
+```
+### 3. Environment Configuration
+* Create a file named .env in the root directory of the project. Add your API key as follows:
+```bash
 GEMINI_API_KEY=your_actual_api_key_here
-Note: The .gitignore file is already configured to prevent this file from being pushed to public repositories.
+```
+* Note: The .gitignore file is already configured to prevent this file from being pushed to public repositories.
 
-4. Running Locally
-Bash
+### 4. Running Locally
+```bash
 npm run dev
+```
 Open http://localhost:3000 in your browser to see the result.
 
-☁️ Hosting on Vercel (Step-by-Step)
+## ☁️ Hosting on Vercel (Step-by-Step)
 Aced is designed to be hosted on Vercel with zero configuration.
 
 Push to GitHub: Ensure your latest code is pushed to your GitHub repository.
