@@ -61,42 +61,42 @@ GEMINI_API_KEY=your_actual_api_key_here
 ```bash
 npm run dev
 ```
-Open http://localhost:3000 in your browser to see the result.
+* Open http://localhost:3000 in your browser to see the result.
 
 ## ☁️ Hosting on Vercel (Step-by-Step)
-Aced is designed to be hosted on Vercel with zero configuration.
+* Aced is designed to be hosted on Vercel with zero configuration.
 
-Push to GitHub: Ensure your latest code is pushed to your GitHub repository.
+* Push to GitHub: Ensure your latest code is pushed to your GitHub repository.
 
-Import Project: Go to the Vercel Dashboard and click "New Project".
+* Import Project: Go to the Vercel Dashboard and click "New Project".
 
-Connect Repo: Select your aced-mvp repository.
+* Connect Repo: Select your aced-mvp repository.
 
-Configure Environment Variables:
+* Configure Environment Variables:
 
-Before clicking "Deploy", expand the Environment Variables section.
+* Before clicking "Deploy", expand the Environment Variables section.
 
-Add GEMINI_API_KEY as the Name.
+* Add GEMINI_API_KEY as the Name.
 
-Paste your secret key from Google AI Studio as the Value.
+* Paste your secret key from Google AI Studio as the Value.
 
-Deploy: Click Deploy. Vercel will provide you with a live URL.
+* Deploy: Click Deploy. Vercel will provide you with a live URL.
 
-📂 Repository Structure
-/api: Contains the serverless function (generate.js) that communicates with Gemini.
+## 📂 Repository Structure
+* /api: Contains the serverless function (generate.js) that communicates with Gemini.
 
-index.html: The landing page and founder's message.
+* index.html: The landing page and founder's message.
 
-generate.html/js: The core logic for AI interaction.
+* generate.html/js: The core logic for AI interaction.
 
-plans.html/js: Logic for viewing and managing generated study plans.
+* plans.html/js: Logic for viewing and managing generated study plans.
 
-app.js: Global application logic.
+* app.js: Global application logic.
 
-📜 License
+## 📜 License
 This project is licensed under the MIT License. You are free to fork, modify, and distribute this code for personal or commercial use.
 
-👨‍💻 Author
+## 👨‍💻 Author
 Jack Warkentin Full-stack Developer & Creator of Aced GitHub Profile
 
 o7
