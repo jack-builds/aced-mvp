@@ -64,23 +64,20 @@ npm run dev
 * Open http://localhost:3000 in your browser to see the result.
 
 ## ☁️ Hosting on Vercel (Step-by-Step)
-* Aced is designed to be hosted on Vercel with zero configuration.
 
-* Push to GitHub: Ensure your latest code is pushed to your GitHub repository.
+Aced is optimized for **Vercel** with zero configuration required. Follow these steps to host your own instance:
 
-* Import Project: Go to the Vercel Dashboard and click "New Project".
+1. **Push to GitHub:** Ensure your latest code is pushed to your GitHub repository.
+2. **Import Project:** Navigate to the [Vercel Dashboard](https://vercel.com/dashboard) and click the **"New Project"** button.
+3. **Connect Repository:** Find and select your `aced-mvp` repository from the list.
+4. **Configure Environment Variables:**
+   * Before clicking "Deploy", scroll down and expand the **Environment Variables** section.
+   * In the **Key** field, enter: `GEMINI_API_KEY`
+   * In the **Value** field, paste your secret key from [Google AI Studio](https://aistudio.google.com/).
+   * Click **Add**.
+5. **Deploy:** Click the **Deploy** button. Once the build finishes, Vercel will provide you with a live production URL.
 
-* Connect Repo: Select your aced-mvp repository.
-
-* Configure Environment Variables:
-
-* Before clicking "Deploy", expand the Environment Variables section.
-
-* Add GEMINI_API_KEY as the Name.
-
-* Paste your secret key from Google AI Studio as the Value.
-
-* Deploy: Click Deploy. Vercel will provide you with a live URL.
+> **Pro-Tip:** If you ever rotate your API keys, you can update them in Vercel under **Settings > Environment Variables** without needing to redeploy your code.
 
 ## 📂 Repository Structure
 
