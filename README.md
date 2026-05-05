@@ -94,7 +94,14 @@ npm run dev
 * app.js: Global application logic.
 
 ## 📜 License
-This project is licensed under the MIT License. You are free to fork, modify, and distribute this code for personal or commercial use.
+
+**All Rights Reserved.**
+
+The source code for Aced is provided for **educational and portfolio purposes only**. 
+
+* **Non-Commercial Use:** You are welcome to fork this repository, study the code, and run it locally for personal use.
+* **Commercial Use:** Use of this code, or any derivative works based on it, for commercial purposes, hosting as a paid service, or financial gain is **strictly prohibited** without explicit written permission from the author.
+* **Attribution:** If you use elements of this code for other non-commercial educational projects, please provide clear attribution to the original repository.
 
 ## 👨‍💻 Author
 Jack Warkentin Full-stack Developer & Creator of Aced GitHub Profile
