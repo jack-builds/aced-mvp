@@ -84,16 +84,14 @@ npm run dev
 
 ## 📂 Repository Structure
 
-```text
-├── 📁 api/
-│   └── generate.js       # Vercel Serverless Function (Gemini API bridge)
-├── index.html            # Landing page & Founder's hiatus message
-├── generate.html         # UI for inputting study material
-├── generate.js           # Frontend logic for handling AI requests
-├── plans.html            # Dashboard for viewing saved study plans
-├── plans.js              # Logic for plan management & local storage
-├── app.js                # Global app configurations & initialization
-└── shared.css            # Global styles used across all pages
+| File / Folder | Responsibility |
+| :--- | :--- |
+| **`/api/generate.js`** | Secure backend bridge to the Gemini 2.5 Flash API. |
+| **`index.html`** | The project entry point and current maintenance notice. |
+| **`generate.html/js`** | Core engine for parsing text and generating AI study plans. |
+| **`plans.html/js`** | User interface for managing and reviewing saved content. |
+| **`app.js`** | Main application logic and global state management. |
+| **`shared.css`** | Unified design system and styling. |
 ```
 
 ## 📜 License
