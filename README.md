@@ -92,7 +92,7 @@ npm run dev
 | **`plans.html/js`** | User interface for managing and reviewing saved content. |
 | **`app.js`** | Main application logic and global state management. |
 | **`shared.css`** | Unified design system and styling. |
-```
+
 
 ## 📜 License
 
