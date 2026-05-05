@@ -102,7 +102,6 @@ The source code for Aced is provided for **educational and portfolio purposes on
 * **Attribution:** If you use elements of this code for other non-commercial educational projects, please provide clear attribution to the original repository.
 
 ## 👨‍💻 Author
-Jack Warkentin Full-stack Developer & Creator of Aced 
-[GitHub Profile](https://github.com/jack-builds)
+Jack Warkentin Full-stack Developer & Creator of Aced. Check out my [GitHub Profile](https://github.com/jack-builds)
 
 o7
