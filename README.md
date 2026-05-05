@@ -83,15 +83,18 @@ npm run dev
 * Deploy: Click Deploy. Vercel will provide you with a live URL.
 
 ## 📂 Repository Structure
-* /api: Contains the serverless function (generate.js) that communicates with Gemini.
 
-* index.html: The landing page and founder's message.
-
-* generate.html/js: The core logic for AI interaction.
-
-* plans.html/js: Logic for viewing and managing generated study plans.
-
-* app.js: Global application logic.
+```text
+├── 📁 api/
+│   └── generate.js       # Vercel Serverless Function (Gemini API bridge)
+├── index.html            # Landing page & Founder's hiatus message
+├── generate.html         # UI for inputting study material
+├── generate.js           # Frontend logic for handling AI requests
+├── plans.html            # Dashboard for viewing saved study plans
+├── plans.js              # Logic for plan management & local storage
+├── app.js                # Global app configurations & initialization
+└── shared.css            # Global styles used across all pages
+```
 
 ## 📜 License
 
