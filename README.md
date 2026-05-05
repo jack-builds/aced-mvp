@@ -93,13 +93,13 @@ Aced is optimized for **Vercel** with zero configuration required. Follow these 
 
 ## 📜 License
 
-**All Rights Reserved.**
+This project is licensed under the **Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0)** license.
 
-The source code for Aced is provided for **educational and portfolio purposes only**. 
+* **Non-Commercial:** You are welcome to fork this repository, study the code, and run it locally for personal use. Use of this code for commercial purposes, hosting as a paid service, or financial gain is **strictly prohibited** under this license.
+* **Attribution:** If you use or adapt elements of this code for other non-commercial projects, you must provide clear attribution to the original author and this repository.
+* **No Warranty:** The software is provided "as-is" without warranties of any kind.
 
-* **Non-Commercial Use:** You are welcome to fork this repository, study the code, and run it locally for personal use.
-* **Commercial Use:** Use of this code, or any derivative works based on it, for commercial purposes, hosting as a paid service, or financial gain is **strictly prohibited** without explicit written permission from the author.
-* **Attribution:** If you use elements of this code for other non-commercial educational projects, please provide clear attribution to the original repository.
+For the full legal text, please refer to the [LICENSE](LICENSE) file in this repository.
 
 ## 👨‍💻 Author
 Jack Warkentin Full-stack Developer & Creator of Aced. Check out my [GitHub Profile](https://github.com/jack-builds)
