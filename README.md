@@ -1,8 +1,8 @@
 # Aced | AI-Powered Study Assistant
 
-![Project Status](https://img.shields.io/badge/Status-Archived-red)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Tech](https://img.shields.io/badge/Tech-Next.js%20%7C%20Gemini%20AI-blue)
+![Project Status](https://img.shields.io/badge/Status-Archived-red?style=for-the-badge)
+![License](https://img.shields.io/badge/License-Custom_Personal_Use-orange?style=for-the-badge)
+![Tech](https://img.shields.io/badge/AI-Gemini_2.5_Flash-blue?style=for-the-badge&logo=google-gemini)
 
 **Aced** is a sophisticated Minimum Viable Product (MVP) designed to streamline the study process. Using Google's Gemini 2.5 Flash model, it transforms dense study guides into structured, actionable learning plans.
 
